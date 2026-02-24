@@ -17,11 +17,8 @@ class SampleHandler: RPBroadcastSampleHandler {
         let stream = RTMPStream(connection: connection)
         self.connection = connection
         self.stream = stream
-
         connection.connect("rtmp://192.168.1.22/live")
         stream.publish("screen")
-
-        // Reconnect every 4 minutes to prevent 5 min timeout
         retryTimer = Timer.scheduledTimer(withTimeInterval: 240, repeats: true) { [weak self] _ in
             self?.reconnect()
         }
