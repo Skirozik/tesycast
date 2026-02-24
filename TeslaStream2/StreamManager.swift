@@ -72,6 +72,10 @@ class StreamManager: ObservableObject {
 
         localIP = address
         streamURL = "rtmp://\(address)/live/stream"
+
+        // Share IP with BroadcastExtension via App Group
+        let defaults = UserDefaults(suiteName: "group.com.simeon.teslastream")
+        defaults?.set(address, forKey: "localIP")
     }
 
     // MARK: - Start Streaming
