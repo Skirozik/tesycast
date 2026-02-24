@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		55BADC732F4D588C00146E83 /* HaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 55BADC722F4D588C00146E83 /* HaishinKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		55BADC4E2F4D4FEA00146E83 /* TeslaStream2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TeslaStream2.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				55BADC732F4D588C00146E83 /* HaishinKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = TeslaStream2;
 			packageProductDependencies = (
+				55BADC722F4D588C00146E83 /* HaishinKit */,
 			);
 			productName = TeslaStream2;
 			productReference = 55BADC4E2F4D4FEA00146E83 /* TeslaStream2.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 55BADC452F4D4FEA00146E83;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55BADC4F2F4D4FEA00146E83 /* Products */;
 			projectDirPath = "";
@@ -332,6 +341,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/HaishinKit/HaishinKit.swift";
+			requirement = {
+				kind = exactVersion;
+				version = 1.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		55BADC722F4D588C00146E83 /* HaishinKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */;
+			productName = HaishinKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 55BADC462F4D4FEA00146E83 /* Project object */;
 }
