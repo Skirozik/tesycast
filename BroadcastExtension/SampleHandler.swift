@@ -9,22 +9,26 @@ class SampleHandler: RPBroadcastSampleHandler {
     private var retryTimer: Timer?
 
     override func broadcastStarted(withSetupInfo setupInfo: [String: NSObject]?) {
+        UserDefaults(suiteName: "group.com.simeon.teslastream")?.set(true, forKey: "isBroadcasting")
         startStream()
     }
 
     private func startStream() {
+        let serverIP = UserDefaults(suiteName: "group.com.simeon.teslastream")?.string(forKey: "localIP") ?? "192.168.1.100"
         let connection = RTMPConnection()
         let stream = RTMPStream(connection: connection)
         self.connection = connection
         self.stream = stream
-        connection.connect("rtmp://192.168.1.22/live")
-        stream.publish("screen")
+        connection.connect("rtmp://\(serverIP)/live")
+        stream.publish("stream")
         retryTimer = Timer.scheduledTimer(withTimeInterval: 240, repeats: true) { [weak self] _ in
             self?.reconnect()
         }
     }
 
     private func reconnect() {
+        retryTimer?.invalidate()
+        retryTimer = nil
         stream?.close()
         connection?.close()
         stream = nil
@@ -33,6 +37,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     override func broadcastFinished() {
+        UserDefaults(suiteName: "group.com.simeon.teslastream")?.set(false, forKey: "isBroadcasting")
         retryTimer?.invalidate()
         retryTimer = nil
         stream?.close()

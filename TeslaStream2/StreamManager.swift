@@ -1,6 +1,4 @@
 import Foundation
-import AVFoundation
-import HaishinKit
 import Combine
 
 @MainActor
@@ -12,30 +10,22 @@ class StreamManager: ObservableObject {
     @Published var errorMessage: String? = nil
 
     // MARK: - Private Properties
-    private let connection = RTMPConnection()
-    private var stream: RTMPStream?
     private var localIP: String = "192.168.1.100"
+    private var broadcastMonitor: Timer?
 
     // MARK: - Singleton
     static let shared = StreamManager()
 
     private init() {
-        setupAudioSession()
         findLocalIPAddress()
+        startBroadcastMonitoring()
     }
 
-    // MARK: - Audio Session Setup
-    private func setupAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(
-                .playAndRecord,
-                mode: .default,
-                options: [.defaultToSpeaker, .allowBluetooth]
-            )
-            try session.setActive(true)
-        } catch {
-            print("Audio session error: \(error)")
+    // MARK: - Broadcast State Monitoring
+    private func startBroadcastMonitoring() {
+        broadcastMonitor = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            let broadcasting = UserDefaults(suiteName: "group.com.simeon.teslastream")?.bool(forKey: "isBroadcasting") ?? false
+            self?.isStreaming = broadcasting
         }
     }
 
@@ -78,35 +68,4 @@ class StreamManager: ObservableObject {
         defaults?.set(address, forKey: "localIP")
     }
 
-    // MARK: - Start Streaming
-    func startStreaming() {
-        errorMessage = nil
-
-        let rtmpStream = RTMPStream(connection: connection)
-        self.stream = rtmpStream
-
-        rtmpStream.attachCamera(
-            AVCaptureDevice.default(
-                .builtInWideAngleCamera,
-                for: .video,
-                position: .front
-            )
-        )
-
-        rtmpStream.attachAudio(
-            AVCaptureDevice.default(for: .audio)
-        )
-
-        connection.connect("rtmp://\(localIP)/live")
-        rtmpStream.publish("stream")
-
-        isStreaming = true
-    }
-
-    // MARK: - Stop Streaming
-    func stopStreaming() {
-        stream?.close()
-        connection.close()
-        isStreaming = false
-    }
 }
