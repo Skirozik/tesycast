@@ -6,66 +6,71 @@ class StreamManager: ObservableObject {
 
     // MARK: - Published Properties
     @Published var isStreaming = false
-    @Published var streamURL = "Finding your IP address..."
-    @Published var errorMessage: String? = nil
+    @Published var streamURL = "Enter server IP below"
+    @Published var serverIP: String {
+        didSet {
+            UserDefaults.standard.set(serverIP, forKey: "serverIP")
+            updateStreamURL()
+            syncToAppGroup()
+        }
+    }
 
     // MARK: - Private Properties
-    private var localIP: String = "192.168.1.100"
     private var broadcastMonitor: Timer?
+    let streamKey: String
 
     // MARK: - Singleton
     static let shared = StreamManager()
 
     private init() {
-        findLocalIPAddress()
+        // Restore saved server IP
+        self.serverIP = UserDefaults.standard.string(forKey: "serverIP") ?? ""
+
+        // Generate or restore persistent stream key
+        let key = "userStreamKey"
+        if let existing = UserDefaults.standard.string(forKey: key) {
+            self.streamKey = existing
+        } else {
+            let newKey = UUID().uuidString
+                .lowercased()
+                .replacingOccurrences(of: "-", with: "")
+                .prefix(12)
+                .description
+            UserDefaults.standard.set(newKey, forKey: key)
+            self.streamKey = newKey
+        }
+
+        updateStreamURL()
+        syncToAppGroup()
         startBroadcastMonitoring()
+    }
+
+    // MARK: - Update stream URL display
+    private func updateStreamURL() {
+        if serverIP.isEmpty {
+            streamURL = "Enter server IP below"
+        } else {
+            streamURL = "http://\(serverIP):8888/live/\(streamKey)"
+        }
+    }
+
+    // MARK: - Share config with BroadcastExtension via App Group
+    func syncToAppGroup() {
+        let defaults = UserDefaults(suiteName: "group.com.zekeyeagar.teslastream")
+        defaults?.set(serverIP, forKey: "serverIP")
+        defaults?.set(streamKey, forKey: "streamKey")
+    }
+
+    // MARK: - Called from HomeView onAppear (kept for compatibility)
+    func findLocalIPAddress() {
+        syncToAppGroup()
     }
 
     // MARK: - Broadcast State Monitoring
     private func startBroadcastMonitoring() {
         broadcastMonitor = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            let broadcasting = UserDefaults(suiteName: "group.com.simeon.teslastream")?.bool(forKey: "isBroadcasting") ?? false
+            let broadcasting = UserDefaults(suiteName: "group.com.zekeyeagar.teslastream")?.bool(forKey: "isBroadcasting") ?? false
             self?.isStreaming = broadcasting
         }
     }
-
-    // MARK: - Find Local IP Address
-    func findLocalIPAddress() {
-        var address = "Not connected to WiFi"
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-
-        if getifaddrs(&ifaddr) == 0 {
-            var ptr = ifaddr
-            while ptr != nil {
-                let interface = ptr!.pointee
-                let addrFamily = interface.ifa_addr.pointee.sa_family
-                if addrFamily == UInt8(AF_INET) {
-                    let name = String(cString: interface.ifa_name)
-                    if name == "en0" {
-                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                        getnameinfo(
-                            interface.ifa_addr,
-                            socklen_t(interface.ifa_addr.pointee.sa_len),
-                            &hostname,
-                            socklen_t(hostname.count),
-                            nil,
-                            socklen_t(0),
-                            NI_NUMERICHOST
-                        )
-                        address = String(cString: hostname)
-                    }
-                }
-                ptr = interface.ifa_next
-            }
-            freeifaddrs(ifaddr)
-        }
-
-        localIP = address
-        streamURL = "rtmp://\(address)/live/stream"
-
-        // Share IP with BroadcastExtension via App Group
-        let defaults = UserDefaults(suiteName: "group.com.simeon.teslastream")
-        defaults?.set(address, forKey: "localIP")
-    }
-
 }

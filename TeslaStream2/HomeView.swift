@@ -39,6 +39,19 @@ struct HomeView: View {
                         .font(.subheadline)
                         .foregroundStyle(.gray)
                 }
+
+                HStack {
+                    TextField("Server IP (e.g. 192.168.1.50)", text: $streamManager.serverIP)
+                        .keyboardType(.decimalPad)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .padding(10)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(10)
+                        .foregroundStyle(.white)
+                        .font(.system(.body, design: .monospaced))
+                }
+                .padding(.horizontal, 4)
                 Spacer()
                 NavigationLink(destination: StreamingView()) {
                     Text("Start Stream ▶")

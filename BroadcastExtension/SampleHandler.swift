@@ -9,18 +9,20 @@ class SampleHandler: RPBroadcastSampleHandler {
     private var retryTimer: Timer?
 
     override func broadcastStarted(withSetupInfo setupInfo: [String: NSObject]?) {
-        UserDefaults(suiteName: "group.com.simeon.teslastream")?.set(true, forKey: "isBroadcasting")
+        UserDefaults(suiteName: "group.com.zekeyeagar.teslastream")?.set(true, forKey: "isBroadcasting")
         startStream()
     }
 
     private func startStream() {
-        let serverIP = UserDefaults(suiteName: "group.com.simeon.teslastream")?.string(forKey: "localIP") ?? "192.168.1.100"
+        let defaults = UserDefaults(suiteName: "group.com.zekeyeagar.teslastream")
+        let serverIP = defaults?.string(forKey: "serverIP") ?? "YOUR_CLOUD_SERVER_IP"
+        let streamKey = defaults?.string(forKey: "streamKey") ?? "stream"
         let connection = RTMPConnection()
         let stream = RTMPStream(connection: connection)
         self.connection = connection
         self.stream = stream
         connection.connect("rtmp://\(serverIP)/live")
-        stream.publish("stream")
+        stream.publish(streamKey)
         retryTimer = Timer.scheduledTimer(withTimeInterval: 240, repeats: true) { [weak self] _ in
             self?.reconnect()
         }
@@ -37,7 +39,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     }
 
     override func broadcastFinished() {
-        UserDefaults(suiteName: "group.com.simeon.teslastream")?.set(false, forKey: "isBroadcasting")
+        UserDefaults(suiteName: "group.com.zekeyeagar.teslastream")?.set(false, forKey: "isBroadcasting")
         retryTimer?.invalidate()
         retryTimer = nil
         stream?.close()

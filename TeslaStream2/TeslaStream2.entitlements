@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.simeon.teslastream</string>
+		<string>group.com.zekeyeagar.teslastream</string>
 	</array>
 </dict>
 </plist>
