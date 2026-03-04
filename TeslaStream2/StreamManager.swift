@@ -5,7 +5,7 @@ import Combine
 class StreamManager: ObservableObject {
 
     @Published var isStreaming = false
-    @Published var streamURL = "http://104.236.226.42"
+    @Published var streamURL = "https://tescast.com"
     @Published var errorMessage: String? = nil
 
     private var pollTimer: Timer?

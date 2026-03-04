@@ -30,7 +30,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     // MARK: - WebSocket
 
     private func connectWebSocket() {
-        let url = URL(string: "ws://104.236.226.42/phone")!
+        let url = URL(string: "wss://tescast.com/phone")!
         webSocketTask = URLSession.shared.webSocketTask(with: url)
         webSocketTask?.resume()
     }

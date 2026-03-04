@@ -22,7 +22,7 @@ class VideoUploadManager: NSObject, ObservableObject {
         state = .uploading
         progress = 0
 
-        var request = URLRequest(url: URL(string: "http://104.236.226.42/upload-video")!)
+        var request = URLRequest(url: URL(string: "https://tescast.com/upload-video")!)
         request.httpMethod = "POST"
         request.setValue("video/mp4", forHTTPHeaderField: "Content-Type")
 
