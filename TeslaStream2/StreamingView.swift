@@ -6,7 +6,6 @@ struct StreamingView: View {
     @StateObject private var streamManager = StreamManager.shared
     @State private var elapsedTime: Int = 0
     @State private var timer: Timer? = nil
-    @State private var isBroadcasting = false
 
     var body: some View {
         ZStack {
@@ -16,23 +15,20 @@ struct StreamingView: View {
 
                 Spacer()
 
-                // LIVE indicator
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(isBroadcasting ? Color.red : Color.gray)
+                        .fill(streamManager.isStreaming ? Color.red : Color.gray)
                         .frame(width: 12, height: 12)
-                    Text(isBroadcasting ? "LIVE" : "READY")
+                    Text(streamManager.isStreaming ? "LIVE" : "READY")
                         .font(.headline)
                         .fontWeight(.bold)
-                        .foregroundStyle(isBroadcasting ? .red : .gray)
+                        .foregroundStyle(streamManager.isStreaming ? .red : .gray)
                 }
 
-                // Timer
                 Text(timeString(elapsedTime))
                     .font(.system(size: 48, weight: .thin, design: .monospaced))
                     .foregroundStyle(.white)
 
-                // Stream URL
                 Text(streamManager.streamURL)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.gray)
@@ -41,11 +37,12 @@ struct StreamingView: View {
 
                 Spacer()
 
-                // Broadcast Picker Button
-                BroadcastPickerView(isBroadcasting: $isBroadcasting)
+                BroadcastPickerView()
                     .frame(width: 60, height: 60)
 
-                Text(isBroadcasting ? "Tap above to stop broadcast" : "Tap above to start broadcasting your screen")
+                Text(streamManager.isStreaming
+                     ? "Tap above to stop broadcast"
+                     : "Tap above to start broadcasting your screen")
                     .font(.caption)
                     .foregroundStyle(.gray)
                     .multilineTextAlignment(.center)
@@ -56,12 +53,32 @@ struct StreamingView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onChange(of: streamManager.isStreaming) { streaming in
+            if streaming {
+                startTimer()
+            } else {
+                stopTimer()
+            }
+        }
         .onDisappear {
-            timer?.invalidate()
+            stopTimer()
         }
     }
 
-    func timeString(_ seconds: Int) -> String {
+    private func startTimer() {
+        elapsedTime = 0
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            elapsedTime += 1
+        }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+        elapsedTime = 0
+    }
+
+    private func timeString(_ seconds: Int) -> String {
         let h = seconds / 3600
         let m = (seconds % 3600) / 60
         let s = seconds % 60
@@ -69,16 +86,12 @@ struct StreamingView: View {
     }
 }
 
-// This is Apple's official broadcast picker button
 struct BroadcastPickerView: UIViewRepresentable {
-    @Binding var isBroadcasting: Bool
-
     func makeUIView(context: Context) -> RPSystemBroadcastPickerView {
         let picker = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
         picker.preferredExtension = "com.simeon.TeslaStream2.BroadcastExtension"
-        picker.showsMicrophoneButton = true
-        
-        // Force the button to be visible
+        picker.showsMicrophoneButton = false
+
         for subview in picker.subviews {
             if let button = subview as? UIButton {
                 button.imageView?.tintColor = .white
@@ -87,7 +100,6 @@ struct BroadcastPickerView: UIViewRepresentable {
                 button.layer.cornerRadius = 30
             }
         }
-        
         return picker
     }
 

@@ -57,6 +57,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		552043A02F57BFF800D3F2F5 /* Exceptions for "TeslaStream2" folder in "TeslaStream2" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 55BADC4D2F4D4FEA00146E83 /* TeslaStream2 */;
+		};
 		55BADC922F4D5D2700146E83 /* Exceptions for "BroadcastExtension" folder in "BroadcastExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -76,6 +83,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		55BADC502F4D4FEA00146E83 /* TeslaStream2 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				552043A02F57BFF800D3F2F5 /* Exceptions for "TeslaStream2" folder in "TeslaStream2" target */,
+			);
 			path = TeslaStream2;
 			sourceTree = "<group>";
 		};
@@ -470,6 +480,7 @@
 				DEVELOPMENT_TEAM = SQF64DKQ83;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TeslaStream2/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -503,6 +514,7 @@
 				DEVELOPMENT_TEAM = SQF64DKQ83;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TeslaStream2/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -41,13 +41,26 @@ struct HomeView: View {
                 }
                 Spacer()
                 NavigationLink(destination: StreamingView()) {
-                    Text("Start Stream ▶")
+                    Text("Mirror Screen ▶")
                         .font(.headline)
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.white)
                         .cornerRadius(14)
+                }
+                .padding(.horizontal, 40)
+
+                NavigationLink(destination: VideoStreamView()) {
+                    Text("Stream a Video ▶")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.white, lineWidth: 1)
+                        )
                 }
                 .padding(.horizontal, 40)
                 Spacer()
@@ -59,7 +72,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            streamManager.findLocalIPAddress()
+        
         }
     }
 }
