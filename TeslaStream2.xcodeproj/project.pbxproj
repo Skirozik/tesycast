@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		558E6BB92F5F448C00571883 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 558E6BB82F5F448C00571883 /* Network.framework */; };
 		55BADC732F4D588C00146E83 /* HaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 55BADC722F4D588C00146E83 /* HaishinKit */; };
 		55BADC7B2F4D5D2700146E83 /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55BADC7A2F4D5D2700146E83 /* ReplayKit.framework */; };
 		55BADC852F4D5D2700146E83 /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55BADC7A2F4D5D2700146E83 /* ReplayKit.framework */; };
@@ -49,6 +50,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		558E6BB82F5F448C00571883 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
 		55BADC4E2F4D4FEA00146E83 /* TeslaStream2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TeslaStream2.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55BADC782F4D5D2700146E83 /* BroadcastExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BroadcastExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		55BADC7A2F4D5D2700146E83 /* ReplayKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ReplayKit.framework; path = System/Library/Frameworks/ReplayKit.framework; sourceTree = SDKROOT; };
@@ -113,6 +115,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				55BADC732F4D588C00146E83 /* HaishinKit in Frameworks */,
+				558E6BB92F5F448C00571883 /* Network.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -161,6 +164,7 @@
 		55BADC792F4D5D2700146E83 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				558E6BB82F5F448C00571883 /* Network.framework */,
 				55BADC7A2F4D5D2700146E83 /* ReplayKit.framework */,
 				55BADC862F4D5D2700146E83 /* UIKit.framework */,
 			);

@@ -5,7 +5,6 @@ import UIKit
 
 class SampleHandler: RPBroadcastSampleHandler {
 
-    private var webSocketTask: URLSessionWebSocketTask?
     private let ciContext = CIContext()
     private var isSending = false
     private var lastSentTime: TimeInterval = 0
@@ -17,22 +16,11 @@ class SampleHandler: RPBroadcastSampleHandler {
         let defaults = UserDefaults(suiteName: "group.com.simeon.teslastream")
         defaults?.set(true, forKey: "broadcastActive")
         defaults?.set(Date(), forKey: "broadcastStartTime")
-        connectWebSocket()
     }
 
     override func broadcastFinished() {
         let defaults = UserDefaults(suiteName: "group.com.simeon.teslastream")
         defaults?.set(false, forKey: "broadcastActive")
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-        webSocketTask = nil
-    }
-
-    // MARK: - WebSocket
-
-    private func connectWebSocket() {
-        let url = URL(string: "wss://tescast.com/phone")!
-        webSocketTask = URLSession.shared.webSocketTask(with: url)
-        webSocketTask?.resume()
     }
 
     // MARK: - Frame processing
@@ -48,26 +36,40 @@ class SampleHandler: RPBroadcastSampleHandler {
 
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
+        // Read device orientation from ReplayKit's per-frame attachment.
+        // CIImage uses Y-up coordinates (opposite of screen Y-down), so .left/.right
+        // rotations are visually inverted — swap them to get the correct screen rotation.
+        var ciImage = CIImage(cvImageBuffer: imageBuffer)
+        if let raw = CMGetAttachment(sampleBuffer,
+                                     key: RPVideoSampleOrientationKey as CFString,
+                                     attachmentModeOut: nil) as? NSNumber,
+           let orientation = CGImagePropertyOrientation(rawValue: raw.uint32Value) {
+            let corrected: CGImagePropertyOrientation
+            switch orientation {
+            case .left:          corrected = .right
+            case .right:         corrected = .left
+            case .leftMirrored:  corrected = .rightMirrored
+            case .rightMirrored: corrected = .leftMirrored
+            default:             corrected = orientation
+            }
+            ciImage = ciImage.oriented(corrected)
+        }
+
         // Scale down 50% — halves transfer size and encoding time
-        let ciImage = CIImage(cvImageBuffer: imageBuffer)
         let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: 0.5, y: 0.5))
         guard let cgImage = ciContext.createCGImage(scaled, from: scaled.extent) else { return }
         guard let jpeg = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.4) else { return }
 
-        // Write to shared container so the main app can show broadcast status
+        isSending = true
+        lastSentTime = now
+
+        // Write to shared container — LocalServer watches this file and serves it as MJPEG
         if let containerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: "group.com.simeon.teslastream"
         ) {
-            try? jpeg.write(to: containerURL.appendingPathComponent("latest_frame.jpg"))
+            try? jpeg.write(to: containerURL.appendingPathComponent("latest_frame.jpg"), options: .atomic)
         }
 
-        isSending = true
-        lastSentTime = now
-        webSocketTask?.send(.data(jpeg)) { [weak self] error in
-            self?.isSending = false
-            if error != nil {
-                self?.connectWebSocket()
-            }
-        }
+        isSending = false
     }
 }

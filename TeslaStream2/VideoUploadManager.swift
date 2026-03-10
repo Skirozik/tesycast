@@ -15,6 +15,7 @@ class VideoUploadManager: NSObject, ObservableObject {
     @Published var progress: Double = 0
 
     private var uploadTask: URLSessionUploadTask?
+    private var uploadResponse: HTTPURLResponse?
     private var tempURL: URL?
 
     func upload(from url: URL) {
@@ -22,7 +23,7 @@ class VideoUploadManager: NSObject, ObservableObject {
         state = .uploading
         progress = 0
 
-        var request = URLRequest(url: URL(string: "https://tescast.com/upload-video")!)
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:8080/upload-video")!)
         request.httpMethod = "POST"
         request.setValue("video/mp4", forHTTPHeaderField: "Content-Type")
 
@@ -52,7 +53,7 @@ class VideoUploadManager: NSObject, ObservableObject {
     }
 }
 
-extension VideoUploadManager: URLSessionTaskDelegate {
+extension VideoUploadManager: URLSessionTaskDelegate, URLSessionDataDelegate {
 
     nonisolated func urlSession(
         _ session: URLSession,
@@ -69,6 +70,16 @@ extension VideoUploadManager: URLSessionTaskDelegate {
 
     nonisolated func urlSession(
         _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        Task { @MainActor in self.uploadResponse = response as? HTTPURLResponse }
+        completionHandler(.allow)
+    }
+
+    nonisolated func urlSession(
+        _ session: URLSession,
         task: URLSessionTask,
         didCompleteWithError error: Error?
     ) {
@@ -76,9 +87,16 @@ extension VideoUploadManager: URLSessionTaskDelegate {
             if let error = error as? URLError, error.code == .cancelled { return }
             if let error = error {
                 self.state = .error(error.localizedDescription)
-            } else {
+                return
+            }
+            let statusCode = self.uploadResponse?.statusCode ?? 0
+            if statusCode == 200 {
                 self.cleanup()
                 self.state = .done
+            } else if statusCode == 413 {
+                self.state = .error("Video too large. Please try a shorter clip.")
+            } else {
+                self.state = .error("Server error (\(statusCode)). Try again.")
             }
         }
     }
