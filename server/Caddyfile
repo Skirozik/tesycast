@@ -1,0 +1,11 @@
+# Replace example.com with your real domain, and set your email for Let's Encrypt.
+# Caddy auto-provisions + renews TLS and transparently upgrades WebSockets.
+
+{
+	email you@example.com
+}
+
+example.com {
+	encode zstd gzip
+	reverse_proxy relay:3000
+}

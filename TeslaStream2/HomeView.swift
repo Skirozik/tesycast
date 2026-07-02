@@ -19,7 +19,7 @@ struct HomeView: View {
                         .font(.subheadline)
                 }
                 Spacer()
-                Text("Open this URL in your\nTesla browser:")
+                Text("Open this link in your\nTesla browser:")
                     .font(.headline)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
@@ -35,23 +35,17 @@ struct HomeView: View {
                 Button(action: {
                     UIPasteboard.general.string = streamManager.streamURL
                 }) {
-                    Label("Copy Address", systemImage: "doc.on.doc")
+                    Label("Copy Link", systemImage: "doc.on.doc")
                         .font(.subheadline)
                         .foregroundStyle(.gray)
                 }
 
-                HStack {
-                    TextField("Server IP (e.g. 192.168.1.50)", text: $streamManager.serverIP)
-                        .keyboardType(.decimalPad)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .padding(10)
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(10)
-                        .foregroundStyle(.white)
-                        .font(.system(.body, design: .monospaced))
-                }
-                .padding(.horizontal, 4)
+                Text("Works over cellular or WiFi — no hotspot needed,\nas long as your Tesla has its own connection.")
+                    .font(.caption)
+                    .foregroundStyle(.gray)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 4)
+
                 Spacer()
                 NavigationLink(destination: StreamingView()) {
                     Text("Start Stream ▶")
@@ -72,7 +66,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            streamManager.findLocalIPAddress()
+            streamManager.syncToAppGroup()
         }
     }
 }

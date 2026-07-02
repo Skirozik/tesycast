@@ -1,0 +1,17 @@
+# Auto-TLS for the relay + LiveKit signaling. Values come from the environment
+# (PUBLIC_DOMAIN / ACME_EMAIL) set in docker-compose.yml + .env.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# Main site: landing page, /watch player, /token, /mode, and the M1 MJPEG relay
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+# LiveKit signaling (WebSocket). Media/TURN go straight to LiveKit over UDP, not here.
+lk.{$PUBLIC_DOMAIN} {
+	reverse_proxy 127.0.0.1:7880
+}

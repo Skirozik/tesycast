@@ -1,0 +1,17 @@
+{
+  "name": "carcast-relay",
+  "version": "1.0.0",
+  "description": "Multi-tenant iPhone -> Tesla screen mirror relay",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "livekit-server-sdk": "^2.9.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -55,6 +55,17 @@ struct StreamingView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            // Tell the relay which player to serve, and (WebRTC mode) connect the
+            // LiveKit room now so the screen track auto-publishes when the user
+            // starts the broadcast.
+            Task {
+                await streamManager.postMode()
+                if !streamManager.compatibilityMode {
+                    await LiveKitPublisher.shared.connect()
+                }
+            }
+        }
         .onDisappear {
             elapsedTimer?.invalidate()
             elapsedTimer = nil
@@ -69,6 +80,7 @@ struct StreamingView: View {
                 elapsedTimer?.invalidate()
                 elapsedTimer = nil
                 elapsedTime = 0
+                Task { await LiveKitPublisher.shared.disconnect() }
             }
         }
     }
