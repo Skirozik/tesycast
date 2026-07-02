@@ -1,4 +1,4 @@
-# CarCast deploy (Milestone 2 — LiveKit WebRTC)
+# Tesycast deploy (Milestone 2 — LiveKit WebRTC)
 
 Runs the whole stack on **one VPS**: LiveKit SFU + the Node relay + Caddy (auto-TLS).
 

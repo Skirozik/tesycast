@@ -62,7 +62,7 @@ struct HomeView: View {
             }
             .padding(.horizontal, 24)
         }
-        .navigationTitle("TeslaStream")
+        .navigationTitle("Tesycast")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .onAppear {

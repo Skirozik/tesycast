@@ -1,5 +1,5 @@
 {
-  "name": "carcast-relay",
+  "name": "tesycast-relay",
   "version": "1.0.0",
   "description": "Multi-tenant iPhone -> Tesla screen mirror relay",
   "private": true,

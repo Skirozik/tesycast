@@ -2,9 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Tesycast</string>
 	<key>RTCAppGroupIdentifier</key>
 	<string>group.com.zekeyeagar.teslastream</string>
-	<key>RTCScreenSharingExtension	</key>
+	<key>RTCScreenSharingExtension</key>
 	<string>com.zekeyeagar.TeslaStream2.BroadcastExtension</string>
 	<key>UIBackgroundModes</key>
 	<array>

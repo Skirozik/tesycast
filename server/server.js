@@ -1,7 +1,7 @@
 'use strict';
 
 // ───────────────────────────────────────────────────────────────────────────
-// CarCast relay — multi-tenant iPhone→Tesla screen mirror.
+// Tesycast relay — multi-tenant iPhone→Tesla screen mirror.
 //
 // The iPhone broadcast extension pushes JPEG frames over WebSocket to
 //   wss://<DOMAIN>/ingest/<code>?secret=<publishSecret>
@@ -19,7 +19,7 @@ const WebSocket = require('ws');
 // ─── Config (override via env; see server/Caddyfile + docker-compose.yml) ───
 const PORT   = parseInt(process.env.PORT || '3000', 10);
 const HOST   = process.env.HOST || '127.0.0.1';          // bind loopback; Caddy fronts TLS
-const BRAND  = process.env.BRAND || 'CarCast';           // TODO: set your product name
+const BRAND  = process.env.BRAND || 'Tesycast';           // TODO: set your product name
 const DOMAIN = process.env.PUBLIC_DOMAIN || 'example.com'; // TODO: set your real domain
 
 // LiveKit (WebRTC, Milestone 2). Defaults match `livekit-server --dev` so this

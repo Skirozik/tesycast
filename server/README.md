@@ -1,4 +1,4 @@
-# CarCast relay (Milestone 1)
+# Tesycast relay (Milestone 1)
 
 Multi-tenant iPhone → Tesla screen-mirror relay. The iPhone broadcast extension
 pushes JPEG frames over WebSocket; the Tesla browser pulls them as MJPEG. **No
@@ -47,7 +47,7 @@ Local (no TLS):
 
 ```bash
 npm install
-BRAND=CarCast PUBLIC_DOMAIN=localhost npm start   # http://localhost:3000
+BRAND=Tesycast PUBLIC_DOMAIN=localhost npm start   # http://localhost:3000
 ```
 
 Production (Docker + auto-TLS via Caddy):

@@ -24,9 +24,6 @@ class StreamManager: ObservableObject {
     }
     var mode: Config.Mode { compatibilityMode ? .mjpeg : .webrtc }
 
-    // MARK: - Private Properties
-    private var broadcastMonitor: Timer?
-
     // MARK: - Singleton
     static let shared = StreamManager()
 
@@ -55,7 +52,6 @@ class StreamManager: ObservableObject {
 
         updateStreamURL()
         syncToAppGroup()
-        startBroadcastMonitoring()
     }
 
     // MARK: - Token generation
@@ -89,15 +85,5 @@ class StreamManager: ObservableObject {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         _ = try? await URLSession.shared.data(for: req)
-    }
-
-    // MARK: - Broadcast State Monitoring
-    private func startBroadcastMonitoring() {
-        broadcastMonitor = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            let broadcasting = UserDefaults(suiteName: Config.appGroup)?.bool(forKey: Config.Key.isBroadcasting) ?? false
-            Task { @MainActor [weak self] in
-                self?.isStreaming = broadcasting
-            }
-        }
     }
 }
