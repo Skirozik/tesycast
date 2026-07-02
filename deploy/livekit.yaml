@@ -1,0 +1,23 @@
+# LiveKit server config (single-node self-host). Milestone 2.
+# API keys are injected via the LIVEKIT_KEYS env var (see docker-compose.yml + .env),
+# so they stay in sync with the Node relay — do NOT hard-code keys here.
+
+port: 7880                 # signaling/HTTP (kept on localhost; Caddy fronts wss on lk.<DOMAIN>)
+
+rtc:
+  tcp_port: 7881           # WebRTC over TCP fallback
+  port_range_start: 50000  # WebRTC media (UDP)
+  port_range_end: 60000
+  use_external_ip: true    # auto-detect the VPS public IP for ICE candidates
+
+turn:
+  enabled: true
+  udp_port: 3478           # embedded TURN over UDP (covers phone-cellular + Tesla-LTE)
+  # TURN-over-TLS (port 5349/443) is only needed on networks that block UDP entirely.
+  # If you need it, run the official generator (see deploy/README.md) which wires
+  # Caddy's layer4 module to terminate TURN/TLS with a real cert.
+
+logging:
+  level: info
+
+# Redis is only needed for multi-node scale-out; a single instance runs without it.

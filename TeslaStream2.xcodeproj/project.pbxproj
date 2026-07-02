@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		55BADC732F4D588C00146E83 /* HaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 55BADC722F4D588C00146E83 /* HaishinKit */; };
+		287FC1BF2FF637E1006D76D8 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 287FC1BE2FF637E1006D76D8 /* LiveKit */; };
+		287FC1C12FF638D5006D76D8 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 287FC1C02FF638D5006D76D8 /* LiveKit */; };
 		55BADC7B2F4D5D2700146E83 /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55BADC7A2F4D5D2700146E83 /* ReplayKit.framework */; };
 		55BADC852F4D5D2700146E83 /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55BADC7A2F4D5D2700146E83 /* ReplayKit.framework */; };
 		55BADC872F4D5D2700146E83 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55BADC862F4D5D2700146E83 /* UIKit.framework */; };
 		55BADC8E2F4D5D2700146E83 /* BroadcastExtensionSetupUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55BADC842F4D5D2700146E83 /* BroadcastExtensionSetupUI.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		55BADC912F4D5D2700146E83 /* BroadcastExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55BADC782F4D5D2700146E83 /* BroadcastExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		55BADC9C2F4D5E7C00146E83 /* HaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = 55BADC9B2F4D5E7C00146E83 /* HaishinKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +57,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		287FC1C32FF6393C006D76D8 /* Exceptions for "TeslaStream2" folder in "TeslaStream2" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 55BADC4D2F4D4FEA00146E83 /* TeslaStream2 */;
+		};
 		55BADC922F4D5D2700146E83 /* Exceptions for "BroadcastExtension" folder in "BroadcastExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -76,6 +83,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		55BADC502F4D4FEA00146E83 /* TeslaStream2 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				287FC1C32FF6393C006D76D8 /* Exceptions for "TeslaStream2" folder in "TeslaStream2" target */,
+			);
 			path = TeslaStream2;
 			sourceTree = "<group>";
 		};
@@ -102,7 +112,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				55BADC732F4D588C00146E83 /* HaishinKit in Frameworks */,
+				287FC1BF2FF637E1006D76D8 /* LiveKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,8 +120,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				55BADC9C2F4D5E7C00146E83 /* HaishinKit in Frameworks */,
 				55BADC7B2F4D5D2700146E83 /* ReplayKit.framework in Frameworks */,
+				287FC1C12FF638D5006D76D8 /* LiveKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -180,7 +190,7 @@
 			);
 			name = TeslaStream2;
 			packageProductDependencies = (
-				55BADC722F4D588C00146E83 /* HaishinKit */,
+				287FC1BE2FF637E1006D76D8 /* LiveKit */,
 			);
 			productName = TeslaStream2;
 			productReference = 55BADC4E2F4D4FEA00146E83 /* TeslaStream2.app */;
@@ -203,7 +213,7 @@
 			);
 			name = BroadcastExtension;
 			packageProductDependencies = (
-				55BADC9B2F4D5E7C00146E83 /* HaishinKit */,
+				287FC1C02FF638D5006D76D8 /* LiveKit */,
 			);
 			productName = BroadcastExtension;
 			productReference = 55BADC782F4D5D2700146E83 /* BroadcastExtension.appex */;
@@ -262,7 +272,7 @@
 			mainGroup = 55BADC452F4D4FEA00146E83;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */,
+				287FC1BD2FF637E1006D76D8 /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55BADC4F2F4D4FEA00146E83 /* Products */;
@@ -472,6 +482,8 @@
 				DEVELOPMENT_TEAM = DK7T2R93WQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TeslaStream2/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "CarCast plays your screen's audio on your Tesla.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -505,6 +517,8 @@
 				DEVELOPMENT_TEAM = DK7T2R93WQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TeslaStream2/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "CarCast plays your screen's audio on your Tesla.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -683,26 +697,26 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */ = {
+		287FC1BD2FF637E1006D76D8 /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/HaishinKit/HaishinKit.swift";
+			repositoryURL = "https://github.com/livekit/client-sdk-swift.git";
 			requirement = {
-				kind = exactVersion;
-				version = 1.9.0;
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.15.1;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		55BADC722F4D588C00146E83 /* HaishinKit */ = {
+		287FC1BE2FF637E1006D76D8 /* LiveKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */;
-			productName = HaishinKit;
+			package = 287FC1BD2FF637E1006D76D8 /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
 		};
-		55BADC9B2F4D5E7C00146E83 /* HaishinKit */ = {
+		287FC1C02FF638D5006D76D8 /* LiveKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 55BADC712F4D588C00146E83 /* XCRemoteSwiftPackageReference "HaishinKit" */;
-			productName = HaishinKit;
+			package = 287FC1BD2FF637E1006D76D8 /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

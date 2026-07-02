@@ -1,0 +1,39 @@
+# CarCast relay + Caddy (auto-TLS reverse proxy).
+#
+# Setup:
+#   1. Point your domain's A/AAAA record at this host.
+#   2. Edit Caddyfile: replace example.com with your domain + your email.
+#   3. Set BRAND / PUBLIC_DOMAIN below (or via a .env file).
+#   4. docker compose up -d
+#
+# Caddy obtains + renews Let's Encrypt certs automatically and proxies
+# https://<domain>  ->  relay:3000  (WebSocket upgrades pass through).
+
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - BRAND=${BRAND:-CarCast}
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-example.com}
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - relay
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

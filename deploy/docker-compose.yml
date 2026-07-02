@@ -1,0 +1,51 @@
+# CarCast full stack: LiveKit SFU + Node relay + Caddy (auto-TLS).
+# All services use host networking so WebRTC/TURN UDP works without port juggling.
+#
+#   <DOMAIN>     → Caddy → relay :3000   (M1 MJPEG relay + /token + /mode)
+#   lk.<DOMAIN>  → Caddy → livekit :7880 (wss signaling)
+#   turn/media   → LiveKit directly (UDP 3478 + 50000-60000, TCP 7881)
+#
+# Setup: copy .env.example → .env, fill it in, point DNS, open the firewall
+# (see deploy/README.md), then:  docker compose up -d --build
+
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    network_mode: host
+    command: --config /etc/livekit.yaml
+    environment:
+      # "key: secret" — SAME values the relay uses, from .env (single source of truth).
+      # Quoted: the ": " would otherwise be parsed as YAML map syntax.
+      - "LIVEKIT_KEYS=${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  relay:
+    build: ../server
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PORT=3000
+      - HOST=127.0.0.1                       # only reachable via Caddy
+      - BRAND=${BRAND:-CarCast}
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN in .env}
+      - LIVEKIT_WS_URL=wss://lk.${PUBLIC_DOMAIN}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-devkey}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:?set LIVEKIT_API_SECRET in .env}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN in .env}
+      - ACME_EMAIL=${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
