@@ -1,4 +1,4 @@
-# CarCast relay + Caddy (auto-TLS reverse proxy).
+# Tesycast relay + Caddy (auto-TLS reverse proxy).
 #
 # Setup:
 #   1. Point your domain's A/AAAA record at this host.
@@ -16,7 +16,7 @@ services:
     environment:
       - PORT=3000
       - HOST=0.0.0.0
-      - BRAND=${BRAND:-CarCast}
+      - BRAND=${BRAND:-Tesycast}
       - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-example.com}
     expose:
       - "3000"

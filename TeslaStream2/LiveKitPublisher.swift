@@ -21,6 +21,7 @@ final class LiveKitPublisher: ObservableObject {
     @Published private(set) var connected = false
 
     let room: Room
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
         room = Room(roomOptions: RoomOptions(
@@ -43,6 +44,15 @@ final class LiveKitPublisher: ObservableObject {
             adaptiveStream: false,
             dynacast: false
         ))
+
+        // Drive the app's LIVE badge/timer from LiveKit's real broadcast state — the
+        // minimal LKSampleHandler can't write an App Group flag, so observe the SDK.
+        BroadcastManager.shared.isBroadcastingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { live in
+                Task { @MainActor in StreamManager.shared.isStreaming = live }
+            }
+            .store(in: &cancellables)
     }
 
     /// Fetch a publish token and connect. The screen track auto-publishes once the

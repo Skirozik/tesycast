@@ -1,4 +1,4 @@
-# CarCast full stack: LiveKit SFU + Node relay + Caddy (auto-TLS).
+# Tesycast full stack: LiveKit SFU + Node relay + Caddy (auto-TLS).
 # All services use host networking so WebRTC/TURN UDP works without port juggling.
 #
 #   <DOMAIN>     → Caddy → relay :3000   (M1 MJPEG relay + /token + /mode)
@@ -28,7 +28,7 @@ services:
     environment:
       - PORT=3000
       - HOST=127.0.0.1                       # only reachable via Caddy
-      - BRAND=${BRAND:-CarCast}
+      - BRAND=${BRAND:-Tesycast}
       - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN in .env}
       - LIVEKIT_WS_URL=wss://lk.${PUBLIC_DOMAIN}
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-devkey}

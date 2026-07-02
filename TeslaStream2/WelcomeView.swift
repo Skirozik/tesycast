@@ -10,7 +10,7 @@ struct WelcomeView: View {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.system(size: 80))
                     .foregroundStyle(.white)
-                Text("TeslaStream")
+                Text("Tesycast")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)

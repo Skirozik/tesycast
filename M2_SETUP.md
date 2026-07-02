@@ -19,7 +19,7 @@ When prompted to choose targets for the **LiveKit** library product, add it to *
 Select the **TeslaStream2** target → **Info** tab → add these rows (Key = Value):
 - `RTCAppGroupIdentifier` = `group.com.zekeyeagar.teslastream`
 - `RTCScreenSharingExtension` = `com.zekeyeagar.TeslaStream2.BroadcastExtension`
-- `Privacy - Microphone Usage Description` = `CarCast plays your screen's audio on your Tesla.`
+- `Privacy - Microphone Usage Description` = `Tesycast plays your screen's audio on your Tesla.`
 
 ## 3. App target Background Mode (critical)
 Target **TeslaStream2** → **Signing & Capabilities** → **+ Capability** → **Background Modes**

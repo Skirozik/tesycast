@@ -1,16 +1,16 @@
-# CarCast 🚗📱
+# Tesycast 🚗📱
 
 **Mirror your iPhone screen to your Tesla's browser — no hotspot required.**
 
 ### 🌐 [tesycast.com](https://tesycast.com)
 
-CarCast streams your iPhone's screen to the Tesla's built-in web browser over the
+Tesycast streams your iPhone's screen to the Tesla's built-in web browser over the
 internet. Your phone uploads over its **own** cellular/WiFi connection, and the Tesla
 pulls the stream over **its own** connection — so you never have to turn on your
 phone's Personal Hotspot.
 
 > **Note:** the Tesla needs its own internet (Premium Connectivity LTE or WiFi). No
-> software can deliver a stream to a car that has no network path — but with CarCast,
+> software can deliver a stream to a car that has no network path — but with Tesycast,
 > the phone's hotspot is no longer that path.
 
 ---
