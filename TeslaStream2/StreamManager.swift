@@ -48,6 +48,12 @@ class StreamManager: ObservableObject {
             self.publishSecret = newSecret
         }
 
+        // Default ON: Tesla's browser can't decode WebRTC/HTML5 video (a plain MP4
+        // freezes on the car), so the image/MJPEG path is the one that actually shows
+        // a picture. Users can still turn it off if their car ever handles WebRTC.
+        if UserDefaults.standard.object(forKey: "compatibilityMode") == nil {
+            UserDefaults.standard.set(true, forKey: "compatibilityMode")
+        }
         self.compatibilityMode = UserDefaults.standard.bool(forKey: "compatibilityMode")
 
         updateStreamURL()
