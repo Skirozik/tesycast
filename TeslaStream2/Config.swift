@@ -48,6 +48,13 @@ enum Config {
         return URL(string: s)
     }
 
+    /// Presence endpoint — `{ publisher: Bool, viewers: Int }`. Polled in image mode
+    /// to drive the LIVE badge/timer, since LiveKit's broadcast-state signal isn't
+    /// running on that path.
+    static func statusURL(code: String) -> URL? {
+        URL(string: "https://\(domain)/status/\(code)")
+    }
+
     /// Endpoint the app POSTs to so `/watch` serves the matching player.
     static func modeURL(code: String, mode: Mode, secret: String) -> URL? {
         guard let esc = secret.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) else { return nil }

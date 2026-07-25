@@ -6,6 +6,7 @@ struct StreamingView: View {
     @StateObject private var streamManager = StreamManager.shared
     @State private var elapsedTime: Int = 0
     @State private var elapsedTimer: Timer? = nil
+    @State private var statusTimer: Timer? = nil
 
     var body: some View {
         ZStack {
@@ -65,10 +66,20 @@ struct StreamingView: View {
                     await LiveKitPublisher.shared.connect()
                 }
             }
+            // In image (MJPEG) mode the extension owns the connection, so the app can't
+            // see the LiveKit broadcast state. Poll the relay's presence signal instead
+            // so LIVE/READY and the timer reflect whether frames are actually arriving.
+            if streamManager.compatibilityMode {
+                statusTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
+                    Task { await pollStatus() }
+                }
+            }
         }
         .onDisappear {
             elapsedTimer?.invalidate()
             elapsedTimer = nil
+            statusTimer?.invalidate()
+            statusTimer = nil
         }
         .onChange(of: streamManager.isStreaming) { nowStreaming in
             if nowStreaming {
@@ -83,6 +94,23 @@ struct StreamingView: View {
                 Task { await LiveKitPublisher.shared.disconnect() }
             }
         }
+    }
+
+    /// Ask the relay whether our publisher socket is connected; mirror that to the
+    /// LIVE badge/timer. Only used in image (MJPEG) mode.
+    @MainActor
+    private func pollStatus() async {
+        guard let url = Config.statusURL(code: streamManager.streamKey),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let status = try? JSONDecoder().decode(RelayStatus.self, from: data) else { return }
+        if streamManager.isStreaming != status.publisher {
+            streamManager.isStreaming = status.publisher
+        }
+    }
+
+    private struct RelayStatus: Decodable {
+        let publisher: Bool
+        let viewers: Int
     }
 
     func timeString(_ seconds: Int) -> String {
