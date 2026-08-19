@@ -21,6 +21,7 @@ const PORT   = parseInt(process.env.PORT || '3000', 10);
 const HOST   = process.env.HOST || '127.0.0.1';          // bind loopback; Caddy fronts TLS
 const BRAND  = process.env.BRAND || 'Tesycast';           // TODO: set your product name
 const DOMAIN = process.env.PUBLIC_DOMAIN || 'example.com'; // TODO: set your real domain
+const REPO   = process.env.REPO_URL || 'https://github.com/Skirozik/tesycast'; // source, linked from the hub page
 
 // LiveKit (WebRTC, Milestone 2). Defaults match `livekit-server --dev` so this
 // works locally out of the box; override in production (same key/secret as livekit.yaml).
@@ -99,7 +100,16 @@ const hubHTML = `<!DOCTYPE html>
   h1{font-size:clamp(34px,6vw,52px);font-weight:800;letter-spacing:-1.5px;background:linear-gradient(135deg,#fff 30%,rgba(255,255,255,.55));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:14px}
   p{font-size:16px;color:rgba(255,255,255,.45);max-width:440px;line-height:1.6}
   .foot{margin-top:36px;font-size:12px;color:rgba(255,255,255,.2);letter-spacing:.05em}
+  .gh{position:fixed;top:18px;right:20px;display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.62);font-size:13px;font-weight:500;text-decoration:none;transition:background .15s,color .15s,border-color .15s}
+  .gh:hover,.gh:focus-visible{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24);color:#fff}
+  .gh svg{flex:none}
+  @media (max-width:480px){.gh{top:12px;right:12px;padding:8px}.gh span{display:none}}
 </style></head><body>
+  <a class="gh" href="${esc(REPO)}" target="_blank" rel="noopener noreferrer" aria-label="View the source code on GitHub">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+    </svg><span>GitHub</span>
+  </a>
   <div class="ring">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/>

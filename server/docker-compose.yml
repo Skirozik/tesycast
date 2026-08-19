@@ -18,6 +18,7 @@ services:
       - HOST=0.0.0.0
       - BRAND=${BRAND:-Tesycast}
       - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-example.com}
+      - REPO_URL=${REPO_URL:-https://github.com/Skirozik/tesycast}
     expose:
       - "3000"
 
