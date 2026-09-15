@@ -1,0 +1,36 @@
+// Tesycast relay — Cloudflare Worker port of server/server.js.
+//
+// SECRETS (never put these in this file — set them with `wrangler secret put`):
+//   npx wrangler secret put LIVEKIT_API_KEY
+//   npx wrangler secret put LIVEKIT_API_SECRET
+//
+// LIVEKIT_WS_URL is the public LiveKit Cloud signalling URL (not a secret, and
+// it is handed to every viewer in the /token response). It lives in `vars`
+// below rather than behind a --var flag, because vars here overwrite the
+// deployed values on every `wrangler deploy` — a flag-only value would revert
+// to empty on the next plain deploy and silently break WebRTC.
+{
+  "name": "tesycast",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    { "pattern": "tesycast.com", "custom_domain": true },
+    { "pattern": "www.tesycast.com", "custom_domain": true }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "Room" }
+    ]
+  },
+  "migrations": [
+    // SQLite-backed Durable Objects: runs on the Workers FREE plan.
+    { "tag": "v1", "new_sqlite_classes": ["Room"] }
+  ],
+  "vars": {
+    "BRAND": "Tesycast",
+    "PUBLIC_DOMAIN": "tesycast.com",
+    "REPO_URL": "https://github.com/Skirozik/tesycast",
+    "LIVEKIT_WS_URL": "wss://tesycast-85onreo6.livekit.cloud"
+  }
+}
