@@ -6,6 +6,7 @@ struct StreamingView: View {
     @StateObject private var streamManager = StreamManager.shared
     @State private var elapsedTime: Int = 0
     @State private var elapsedTimer: Timer? = nil
+    @State private var statusTimer: Timer? = nil
 
     var body: some View {
         ZStack {
@@ -56,17 +57,20 @@ struct StreamingView: View {
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            // Tell the relay which player to serve, and (WebRTC mode) connect the
-            // LiveKit room now so the screen track auto-publishes when the user
-            // starts the broadcast.
-            Task {
-                await streamManager.postMode()
-                await LiveKitPublisher.shared.connect()
+            // Tell the relay which player to serve. The broadcast extension owns the
+            // frame socket, so the app can't see its state directly; poll the relay's
+            // presence signal instead so LIVE/READY and the timer reflect whether
+            // frames are actually arriving.
+            Task { await streamManager.postMode() }
+            statusTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
+                Task { await pollStatus() }
             }
         }
         .onDisappear {
             elapsedTimer?.invalidate()
             elapsedTimer = nil
+            statusTimer?.invalidate()
+            statusTimer = nil
         }
         .onChange(of: streamManager.isStreaming) { nowStreaming in
             if nowStreaming {
@@ -78,14 +82,25 @@ struct StreamingView: View {
                 elapsedTimer?.invalidate()
                 elapsedTimer = nil
                 elapsedTime = 0
-                // Tear the room down after a broadcast, then bring it back up so the
-                // next tap on the broadcast button has a live room to publish into.
-                Task {
-                    await LiveKitPublisher.shared.disconnect()
-                    await LiveKitPublisher.shared.connect()
-                }
             }
         }
+    }
+
+    /// Ask the relay whether our publisher socket is connected; mirror that to the
+    /// LIVE badge/timer.
+    @MainActor
+    private func pollStatus() async {
+        guard let url = Config.statusURL(code: streamManager.streamKey),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let status = try? JSONDecoder().decode(RelayStatus.self, from: data) else { return }
+        if streamManager.isStreaming != status.publisher {
+            streamManager.isStreaming = status.publisher
+        }
+    }
+
+    private struct RelayStatus: Decodable {
+        let publisher: Bool
+        let viewers: Int
     }
 
     func timeString(_ seconds: Int) -> String {
