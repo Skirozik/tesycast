@@ -19,7 +19,9 @@ struct WelcomeView: View {
                     .foregroundStyle(.gray)
                     .multilineTextAlignment(.center)
                 Spacer()
-                NavigationLink(destination: SubscriptionView()) {
+                // Beta: skip the (non-functional) subscription screen and go straight to
+                // Home. Re-point this at SubscriptionView() once real StoreKit is wired up.
+                NavigationLink(destination: HomeView()) {
                     Text("Get Started")
                         .font(.headline)
                         .foregroundStyle(.black)
