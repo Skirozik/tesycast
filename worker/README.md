@@ -19,6 +19,14 @@ All routes from `server.js` are preserved: `/`, `/healthz`, `/watch/<code>`,
 `/video/<code>` (byte ranges), `/upload-video/<code>`, and WebSockets
 `/ingest/<code>`, `/view/<code>`, `/video-events/<code>`.
 
+**The shipping app uses the JPEG path**: the broadcast extension pushes frames to
+`/ingest`, the Durable Object fans them out to `/view`, and `/watch` serves the
+canvas player. The extension keeps every frame under 900 KB (the runtime closes a
+socket on any message over 1 MiB) and sends a text `ping` every 25 s, which the
+object auto-answers without waking or forwarding to viewers, so a static phone
+screen does not get its socket reaped. The LiveKit/WebRTC routes remain live and
+working but nothing in the app publishes to them.
+
 ## Deploy
 
 ```bash
