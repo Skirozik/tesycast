@@ -15,10 +15,13 @@ class StreamManager: ObservableObject {
     let publishSecret: String
 
     // MARK: - Transport mode
-    /// WebRTC is the only transport the app can publish: the broadcast extension is
-    /// LiveKit-only, so the old MJPEG "compatibility mode" had nothing behind it and
-    /// silently disabled streaming when its saved flag was on.
-    let mode: Config.Mode = .webrtc
+    /// JPEG stills over a WebSocket, painted onto a <canvas> in the car. Tesla's browser
+    /// will not play video while the car is in Drive, so this image path is the one that
+    /// actually shows a picture on the screen; the broadcast extension publishes only
+    /// this. The WebRTC/LiveKit publisher (LiveKitPublisher.swift) stays in the tree
+    /// but is not wired in — a saved flag choosing between the two is what silently
+    /// broke streaming before, so there is deliberately no switch here.
+    let mode: Config.Mode = .mjpeg
 
     // MARK: - Singleton
     static let shared = StreamManager()

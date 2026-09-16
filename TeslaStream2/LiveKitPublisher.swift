@@ -28,16 +28,22 @@ final class LiveKitPublisher: ObservableObject {
             // Route screen capture through the broadcast upload extension, and
             // capture in-app audio so video has sound with A/V sync.
             defaultScreenShareCaptureOptions: ScreenShareCaptureOptions(
-                dimensions: .h1440_169,   // 1440p capture — sharper than the 1080p default
+                // 1080p, not 1440p: a 1440p/14 Mbps H.264 feed overwhelms Tesla's
+                // in-car browser decoder the instant the mirrored screen shows real
+                // video (nearly every pixel changing 30×/sec). The picture freezes on
+                // the last frame while the separate, cheap audio stream keeps playing.
+                // 1080p is ~44% of the pixels and decodes reliably on MCU2 (Intel) and
+                // MCU3 (Ryzen) alike. Drop to .h720_169 if an older screen still stalls.
+                dimensions: .h1080_169,
                 appAudio: true,
                 useBroadcastExtension: true
             ),
             // Force H.264 — the codec Tesla's Chromium hardware-decodes on both
-            // MCU2 (Intel) and MCU3 (Ryzen).
-            // High bitrate for sharp 1080p screen content; single layer (no simulcast)
-            // since there's one full-screen viewer.
+            // MCU2 (Intel) and MCU3 (Ryzen). 8 Mbps is plenty for sharp 1080p screen
+            // content and leaves the decoder headroom on high-motion video; single
+            // layer (no simulcast) since there's one full-screen viewer.
             defaultVideoPublishOptions: VideoPublishOptions(
-                screenShareEncoding: VideoEncoding(maxBitrate: 14_000_000, maxFps: 30),
+                screenShareEncoding: VideoEncoding(maxBitrate: 8_000_000, maxFps: 30),
                 simulcast: false,
                 preferredCodec: .h264
             ),
