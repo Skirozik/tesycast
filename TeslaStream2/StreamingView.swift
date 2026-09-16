@@ -61,9 +61,7 @@ struct StreamingView: View {
             // starts the broadcast.
             Task {
                 await streamManager.postMode()
-                if !streamManager.compatibilityMode {
-                    await LiveKitPublisher.shared.connect()
-                }
+                await LiveKitPublisher.shared.connect()
             }
         }
         .onDisappear {
@@ -80,7 +78,12 @@ struct StreamingView: View {
                 elapsedTimer?.invalidate()
                 elapsedTimer = nil
                 elapsedTime = 0
-                Task { await LiveKitPublisher.shared.disconnect() }
+                // Tear the room down after a broadcast, then bring it back up so the
+                // next tap on the broadcast button has a live room to publish into.
+                Task {
+                    await LiveKitPublisher.shared.disconnect()
+                    await LiveKitPublisher.shared.connect()
+                }
             }
         }
     }

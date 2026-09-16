@@ -15,14 +15,10 @@ class StreamManager: ObservableObject {
     let publishSecret: String
 
     // MARK: - Transport mode
-    /// When true, broadcasts use the M1 MJPEG fallback instead of WebRTC (for older Teslas).
-    @Published var compatibilityMode: Bool {
-        didSet {
-            UserDefaults.standard.set(compatibilityMode, forKey: "compatibilityMode")
-            syncToAppGroup()
-        }
-    }
-    var mode: Config.Mode { compatibilityMode ? .mjpeg : .webrtc }
+    /// WebRTC is the only transport the app can publish: the broadcast extension is
+    /// LiveKit-only, so the old MJPEG "compatibility mode" had nothing behind it and
+    /// silently disabled streaming when its saved flag was on.
+    let mode: Config.Mode = .webrtc
 
     // MARK: - Singleton
     static let shared = StreamManager()
@@ -47,8 +43,6 @@ class StreamManager: ObservableObject {
             UserDefaults.standard.set(newSecret, forKey: secretName)
             self.publishSecret = newSecret
         }
-
-        self.compatibilityMode = UserDefaults.standard.bool(forKey: "compatibilityMode")
 
         updateStreamURL()
         syncToAppGroup()
