@@ -64,35 +64,45 @@ export function mirrorHTML(BRAND, code) {
     var statusEl=document.getElementById('status'),badge=document.getElementById('badge'),msg=document.getElementById('msg');
     // Decode one frame at a time; if frames arrive faster than the (slow) Tesla CPU can
     // draw, keep only the freshest one instead of letting a backlog build up (= lag).
-    var busy=false,pending=null;
+    // The relay gives this viewer a window of 4 frames in flight and refills it on
+    // 'ack', so a car on a slow link is handed the freshest frame rather than a backlog.
+    var busy=false,pending=null,ws=null,drawn=0;
+    function done(){
+      busy=false;drawn++;
+      if(drawn%4===0&&ws&&ws.readyState===1){try{ws.send('ack');}catch(_){}}
+      if(pending){var p=pending;pending=null;draw(p);}
+    }
     function draw(data){
       busy=true;
       var url=URL.createObjectURL(new Blob([data],{type:'image/jpeg'}));
       var img=new Image();
       img.onload=function(){
         if(canvas.width!==img.naturalWidth||canvas.height!==img.naturalHeight){canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;}
-        ctx.drawImage(img,0,0);URL.revokeObjectURL(url);
-        busy=false;if(pending){var p=pending;pending=null;draw(p);}
+        ctx.drawImage(img,0,0);URL.revokeObjectURL(url);done();
       };
-      img.onerror=function(){URL.revokeObjectURL(url);busy=false;if(pending){var p=pending;pending=null;draw(p);}};
+      img.onerror=function(){URL.revokeObjectURL(url);done();};
       img.src=url;
     }
+    function waiting(text){msg.textContent=text;statusEl.style.display='block';badge.style.display='none';}
     function connect(){
       var proto=location.protocol==='https:'?'wss:':'ws:';
-      var ws=new WebSocket(proto+'//'+location.host+'/view/'+code);
-      ws.binaryType='arraybuffer';var ka=0;
+      ws=new WebSocket(proto+'//'+location.host+'/view/'+code);
+      ws.binaryType='arraybuffer';var ka=0;drawn=0;
       // Keepalive: the relay auto-answers 'ping' with 'pong' and reaps sockets
       // that stop pinging, so a dropped connection is noticed within ~2 min.
       ws.onopen=function(){ka=setInterval(function(){try{ws.send('ping');}catch(_){}},25000);};
       ws.onmessage=function(e){
-        if(typeof e.data==='string')return;   // 'pong' keepalive, not a frame
+        if(typeof e.data==='string'){                       // control text, never a frame
+          if(e.data==='publisher-gone')waiting('Waiting for broadcast\\u2026');
+          return;
+        }
         statusEl.style.display='none';badge.style.display='flex';
         if(busy){pending=e.data;return;}
         draw(e.data);
       };
       ws.onclose=function(){
         if(ka)clearInterval(ka);
-        msg.textContent='Reconnecting\\u2026';statusEl.style.display='block';badge.style.display='none';
+        waiting('Reconnecting\\u2026');
         setTimeout(connect,1500);
       };
       ws.onerror=function(){try{ws.close();}catch(_){}};
@@ -125,14 +135,17 @@ export function liveKitHTML(BRAND, code) {
   <div id="status"><div class="icon">&#x1F4F1;</div><div id="msg">Connecting&hellip;</div></div>
   <div id="unmute">&#x1F50A; Tap for sound</div>
   <div id="fit">&#x2922; Fill</div>
-  <script type="module">
-    import { Room, RoomEvent, Track } from 'https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.esm.mjs';
-    var code="${c}";
-    var v=document.getElementById('v'),statusEl=document.getElementById('status'),msg=document.getElementById('msg'),unmute=document.getElementById('unmute'),fit=document.getElementById('fit');
-    fit.onclick=function(){var on=v.classList.toggle('fill');fit.textContent=on?'\\u2922 Fit':'\\u2922 Fill';};
-    var gotVideo=false;
+  <script>
+    // Armed outside the module so the fallback still fires if the SDK import
+    // itself fails (a blocked CDN in the car would otherwise leave "Connecting…").
+    var code="${c}",gotVideo=false;
     function fallback(){location.href='/watch/'+code+'?mode=mjpeg';}
     var fb=setTimeout(function(){if(!gotVideo)fallback();},8000);
+  </script>
+  <script type="module">
+    import { Room, RoomEvent, Track } from 'https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.esm.mjs';
+    var v=document.getElementById('v'),statusEl=document.getElementById('status'),msg=document.getElementById('msg'),unmute=document.getElementById('unmute'),fit=document.getElementById('fit');
+    fit.onclick=function(){var on=v.classList.toggle('fill');fit.textContent=on?'\\u2922 Fit':'\\u2922 Fill';};
     (async function(){
       var wsUrl,token;
       try{var r=await fetch('/token/'+code);var j=await r.json();wsUrl=j.wsUrl;token=j.token;}

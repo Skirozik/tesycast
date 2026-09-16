@@ -87,19 +87,20 @@ export default {
     if (pathname === '/') return html(hubHTML(env.BRAND, env.PUBLIC_DOMAIN, env.REPO_URL));
     if (pathname === '/healthz') return text('ok');
 
-    // GET /watch/<code> — WebRTC (LiveKit) player by default, MJPEG when
-    // ?mode=mjpeg or when the room's stored mode is mjpeg.
+    // GET /watch/<code> — the MJPEG canvas player unless ?mode=webrtc or the
+    // room's stored mode is webrtc.
     let code = matchCode(pathname, '/watch');
     if (code) {
       let mode = url.searchParams.get('mode');
       if (!mode) {
         // Ask the room DO for its stored mode; a room that was never claimed
-        // just answers "webrtc" without persisting anything.
+        // answers "mjpeg" (the only transport the app publishes) without
+        // persisting anything.
         try {
           const res = await roomStub(env, code).fetch('https://do/internal/state');
           mode = (await res.json()).mode;
         } catch (_) {
-          mode = 'webrtc';
+          mode = 'mjpeg';
         }
       }
       return html(mode === 'mjpeg' ? mirrorHTML(env.BRAND, code) : liveKitHTML(env.BRAND, code));

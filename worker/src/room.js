@@ -39,6 +39,18 @@ const STALE_AFTER = 150 * 1000;
 
 const MEDIA_TYPE_RE = /^(video|audio)\/[a-z0-9.+-]+$/;
 
+// Per-viewer backpressure for the MJPEG fan-out. A Workers WebSocket send()
+// never blocks and exposes no buffered amount, so a viewer draining slower
+// than the phone uploads (a car on LTE, a phone on Wi-Fi) would queue frames
+// in this object's memory without bound until the isolate is evicted — taking
+// the publisher and every viewer down with it. Each viewer gets a window of
+// frames in flight and refills it with a text "ack" (sent by the player every
+// VIEWER_WINDOW drawn frames); while a viewer is out of credit it is handed
+// only the freshest frame once it acks. If no ack arrives for a while (lost
+// ack, or a page from before this protocol) the window refills anyway.
+const VIEWER_WINDOW = 4;
+const STALL_REFILL_MS = 5000;
+
 const json = obj => new Response(JSON.stringify(obj), {
   headers: { 'Content-Type': 'application/json' },
 });
@@ -103,6 +115,11 @@ export class Room extends DurableObject {
   // so a hibernated room never pays a storage write per frame.
   #seen = new Map();
 
+  // MJPEG fan-out state, in-memory only (a wake starts every viewer with a
+  // full window, which is the safe direction).
+  #latest = null;        // freshest publisher frame
+  #flow = new Map();     // viewer ws -> { credits, lastSend, behind }
+
   constructor(ctx, env) {
     super(ctx, env);
     // Client-driven keepalive handled by the runtime: it refreshes the socket's
@@ -125,7 +142,7 @@ export class Room extends DurableObject {
     // Internal (Worker -> DO) routes.
     if (path === '/internal/state') {
       const mode = await this.ctx.storage.get('mode');
-      return json({ mode: mode || 'webrtc' });
+      return json({ mode: mode || 'mjpeg' });
     }
     if (path === '/internal/claim') {
       // Trust-on-first-use secret check for /token?role=publish.
@@ -198,6 +215,7 @@ export class Room extends DurableObject {
     this.ctx.acceptWebSocket(server, [TAG_PUBLISHER]);
     this.#touch(server);
     for (const old of previous) { try { old.close(4000, 'replaced'); } catch (_) {} }
+    await this.ctx.storage.put('mode', 'mjpeg');
     await this.#scheduleSweep();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -211,25 +229,65 @@ export class Room extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  // Publisher frames fan out to all MJPEG viewers.
+  // Publisher frames fan out to every MJPEG viewer that has credit; viewers
+  // refill their window with "ack".
   webSocketMessage(ws, message) {
     this.#touch(ws);
     const tags = this.ctx.getTags(ws);
     if (tags.includes(TAG_PUBLISHER)) {
-      for (const viewer of this.ctx.getWebSockets(TAG_VIEWER)) {
-        try { viewer.send(message); } catch (_) {}
-      }
+      if (typeof message === 'string') return;     // control text, never a frame
+      this.#latest = message;
+      for (const viewer of this.ctx.getWebSockets(TAG_VIEWER)) this.#deliver(viewer);
+      return;
     }
+    if (tags.includes(TAG_VIEWER) && message === 'ack') {
+      const flow = this.#flowFor(ws);
+      flow.credits = VIEWER_WINDOW;
+      if (flow.behind) this.#deliver(ws);          // it fell behind: hand it the freshest frame
+    }
+  }
+
+  #flowFor(viewer) {
+    let flow = this.#flow.get(viewer);
+    if (!flow) { flow = { credits: VIEWER_WINDOW, lastSend: 0, behind: false }; this.#flow.set(viewer, flow); }
+    return flow;
+  }
+
+  #deliver(viewer) {
+    if (!this.#latest) return;
+    const flow = this.#flowFor(viewer);
+    const now = Date.now();
+    if (flow.credits <= 0 && now - flow.lastSend > STALL_REFILL_MS) flow.credits = VIEWER_WINDOW;
+    if (flow.credits <= 0) { flow.behind = true; return; }
+    try {
+      viewer.send(this.#latest);
+      flow.credits--; flow.lastSend = now; flow.behind = false;
+    } catch (_) {}
   }
 
   async webSocketClose(ws, _code, _reason, _wasClean) {
     this.#seen.delete(ws);
+    this.#flow.delete(ws);
+    this.#publisherLeft(ws);
     await this.#maybeCleanup(ws);
   }
 
   webSocketError(ws, _error) {
     this.#seen.delete(ws);
+    this.#flow.delete(ws);
+    this.#publisherLeft(ws);
     try { ws.close(); } catch (_) {}
+  }
+
+  // When the last publisher goes, tell viewers so the player can drop its LIVE
+  // badge instead of sitting on a frozen frame.
+  #publisherLeft(ws) {
+    if (!this.ctx.getTags(ws).includes(TAG_PUBLISHER)) return;
+    if (this.ctx.getWebSockets(TAG_PUBLISHER).some(w => w !== ws)) return;
+    this.#latest = null;
+    for (const viewer of this.ctx.getWebSockets(TAG_VIEWER)) {
+      try { viewer.send('publisher-gone'); } catch (_) {}
+    }
   }
 
   #touch(ws) { this.#seen.set(ws, Date.now()); }
@@ -253,6 +311,7 @@ export class Room extends DurableObject {
       if (!last) { this.#touch(ws); continue; }   // first sweep after a wake: grace period
       if (now - last > STALE_AFTER) {
         this.#seen.delete(ws);
+        this.#flow.delete(ws);
         try { ws.close(1001, 'stale'); } catch (_) {}
       }
     }
@@ -281,15 +340,17 @@ export class Room extends DurableObject {
     if (existing === null || existing > at) await this.ctx.storage.setAlarm(at);
   }
 
-  // Mirror of server.js maybeCleanup(): once nothing references the room, drop
-  // the transport mode. The claim is NOT dropped here — it expires on its own
-  // TTL, so a passing viewer cannot release the code out from under a publisher.
+  // server.js maybeCleanup() forgot the whole room once nothing referenced it.
+  // Here nothing is forgotten on socket close: the claim expires on its own TTL
+  // (so a passing viewer cannot release the code out from under a publisher),
+  // and the mode is kept so the next /watch load between broadcasts still gets
+  // the canvas player rather than an 8 s detour through the LiveKit page.
+  // Only the in-memory frame state is released.
   async #maybeCleanup(closing) {
     const live = tag => this.ctx.getWebSockets(tag).filter(w => w !== closing).length;
     if (live(TAG_PUBLISHER) > 0 || live(TAG_VIEWER) > 0 || live(TAG_VIDEO_VIEWER) > 0) return;
-    const meta = await this.ctx.storage.get('videoMeta');
-    if (meta) return; // a stored video keeps the room alive, like room.videoBuffer did
-    await this.ctx.storage.delete('mode');
+    this.#latest = null;
+    this.#flow.clear();
   }
 
   // ── Uploaded video ─────────────────────────────────────────────────────────
