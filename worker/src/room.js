@@ -323,8 +323,13 @@ export class Room extends DurableObject {
   async #expireClaim() {
     const claimedAt = await this.ctx.storage.get('claimedAt');
     if (claimedAt === undefined) return;
+    // An open broadcast is publisher activity: refresh once per sweep (frames
+    // themselves never touch storage) so a long session's claim outlives it.
+    if (this.ctx.getWebSockets(TAG_PUBLISHER).length > 0) {
+      await this.ctx.storage.put('claimedAt', Date.now());
+      return;
+    }
     if (Date.now() - claimedAt <= CLAIM_TTL) return;
-    if (this.ctx.getWebSockets(TAG_PUBLISHER).length > 0) return;
     await this.ctx.storage.delete(['secret', 'claimedAt']);
   }
 

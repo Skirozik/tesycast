@@ -11,7 +11,8 @@ class StreamManager: ObservableObject {
     // MARK: - Identity
     /// Public room code — appears in the Tesla watch URL.
     let streamKey: String
-    /// Private credential — proves publish rights to the relay/token endpoint, never in a URL.
+    /// Private credential — proves publish rights to the relay. Never part of the watch URL;
+    /// sent to the relay as a `?secret=` query parameter over TLS.
     let publishSecret: String
 
     // MARK: - Transport mode

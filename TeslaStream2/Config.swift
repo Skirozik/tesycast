@@ -28,7 +28,7 @@ enum Config {
     // App Group keys (kept identical in SampleHandler — the extension can't import this file).
     enum Key {
         static let streamKey      = "streamKey"      // public room code (in the watch URL)
-        static let publishSecret  = "publishSecret"  // private credential (never in a URL)
+        static let publishSecret  = "publishSecret"  // private credential (never in the watch URL)
         static let domain         = "domain"
         static let isBroadcasting = "isBroadcasting"
         static let mode           = "mode"           // "webrtc" | "mjpeg"
