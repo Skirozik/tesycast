@@ -483,7 +483,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TeslaStream2/Info.plist;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "CarCast plays your screen's audio on your Tesla.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Tesycast plays your screen's audio on your Tesla.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -518,7 +518,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TeslaStream2/Info.plist;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "CarCast plays your screen's audio on your Tesla.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Tesycast plays your screen's audio on your Tesla.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
