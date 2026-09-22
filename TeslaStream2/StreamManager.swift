@@ -11,18 +11,18 @@ class StreamManager: ObservableObject {
     // MARK: - Identity
     /// Public room code — appears in the Tesla watch URL.
     let streamKey: String
-    /// Private credential — proves publish rights to the relay/token endpoint, never in a URL.
+    /// Private credential — proves publish rights to the relay. Never part of the watch URL;
+    /// sent to the relay as a `?secret=` query parameter over TLS.
     let publishSecret: String
 
     // MARK: - Transport mode
-    /// When true, broadcasts use the M1 MJPEG fallback instead of WebRTC (for older Teslas).
-    @Published var compatibilityMode: Bool {
-        didSet {
-            UserDefaults.standard.set(compatibilityMode, forKey: "compatibilityMode")
-            syncToAppGroup()
-        }
-    }
-    var mode: Config.Mode { compatibilityMode ? .mjpeg : .webrtc }
+    /// JPEG stills over a WebSocket, painted onto a <canvas> in the car. Tesla's browser
+    /// will not play video while the car is in Drive, so this image path is the one that
+    /// actually shows a picture on the screen; the broadcast extension publishes only
+    /// this. The WebRTC/LiveKit publisher (LiveKitPublisher.swift) stays in the tree
+    /// but is not wired in — a saved flag choosing between the two is what silently
+    /// broke streaming before, so there is deliberately no switch here.
+    let mode: Config.Mode = .mjpeg
 
     // MARK: - Singleton
     static let shared = StreamManager()
@@ -47,8 +47,6 @@ class StreamManager: ObservableObject {
             UserDefaults.standard.set(newSecret, forKey: secretName)
             self.publishSecret = newSecret
         }
-
-        self.compatibilityMode = UserDefaults.standard.bool(forKey: "compatibilityMode")
 
         updateStreamURL()
         syncToAppGroup()

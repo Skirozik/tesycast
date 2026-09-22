@@ -28,7 +28,7 @@ enum Config {
     // App Group keys (kept identical in SampleHandler — the extension can't import this file).
     enum Key {
         static let streamKey      = "streamKey"      // public room code (in the watch URL)
-        static let publishSecret  = "publishSecret"  // private credential (never in a URL)
+        static let publishSecret  = "publishSecret"  // private credential (never in the watch URL)
         static let domain         = "domain"
         static let isBroadcasting = "isBroadcasting"
         static let mode           = "mode"           // "webrtc" | "mjpeg"
@@ -46,6 +46,13 @@ enum Config {
             s += "&secret=\(esc)"
         }
         return URL(string: s)
+    }
+
+    /// Presence endpoint — `{ publisher: Bool, viewers: Int }`. Polled in image mode
+    /// to drive the LIVE badge/timer, since LiveKit's broadcast-state signal isn't
+    /// running on that path.
+    static func statusURL(code: String) -> URL? {
+        URL(string: "https://\(domain)/status/\(code)")
     }
 
     /// Endpoint the app POSTs to so `/watch` serves the matching player.

@@ -129,7 +129,7 @@ function mirrorHTML(code) {
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   body{background:#000;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
-  canvas{max-width:100vw;max-height:100vh;display:block}
+  canvas{width:100vw;height:100vh;object-fit:contain;display:block}
   #status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:rgba(255,255,255,.5);font-size:15px;pointer-events:none}
   #status .icon{font-size:42px;margin-bottom:14px;opacity:.4}
   #badge{position:absolute;top:18px;right:18px;display:none;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(239,68,68,.4);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;color:#ef4444;letter-spacing:.08em}
@@ -146,16 +146,29 @@ function mirrorHTML(code) {
     var code="${c}";
     var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
     var statusEl=document.getElementById('status'),badge=document.getElementById('badge'),msg=document.getElementById('msg');
+    // Decode one frame at a time; if frames arrive faster than the (slow) Tesla CPU can
+    // draw, keep only the freshest one instead of letting a backlog build up (= lag).
+    var busy=false,pending=null;
+    function draw(data){
+      busy=true;
+      var url=URL.createObjectURL(new Blob([data],{type:'image/jpeg'}));
+      var img=new Image();
+      img.onload=function(){
+        if(canvas.width!==img.naturalWidth||canvas.height!==img.naturalHeight){canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;}
+        ctx.drawImage(img,0,0);URL.revokeObjectURL(url);
+        busy=false;if(pending){var p=pending;pending=null;draw(p);}
+      };
+      img.onerror=function(){URL.revokeObjectURL(url);busy=false;if(pending){var p=pending;pending=null;draw(p);}};
+      img.src=url;
+    }
     function connect(){
       var proto=location.protocol==='https:'?'wss:':'ws:';
       var ws=new WebSocket(proto+'//'+location.host+'/view/'+code);
       ws.binaryType='arraybuffer';
       ws.onmessage=function(e){
         statusEl.style.display='none';badge.style.display='flex';
-        var blob=new Blob([e.data],{type:'image/jpeg'});
-        var url=URL.createObjectURL(blob);var img=new Image();
-        img.onload=function(){canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;ctx.drawImage(img,0,0);URL.revokeObjectURL(url);};
-        img.src=url;
+        if(busy){pending=e.data;return;}
+        draw(e.data);
       };
       ws.onclose=function(){
         msg.textContent='Reconnecting\\u2026';statusEl.style.display='block';badge.style.display='none';
