@@ -23,6 +23,7 @@ const READ_BATCH = 8;                  // chunks fetched per storage.get() while
 const TAG_PUBLISHER = 'publisher';
 const TAG_VIEWER = 'viewer';
 const TAG_VIDEO_VIEWER = 'video-viewer';
+const TAG_ACKS_RECEIVED = 'acks-received';   // viewer page acks received frames (see below)
 
 // The Node relay's secret lived in process memory: a restart, or the last
 // socket closing, released the code for re-claiming. Durable storage needs an
@@ -44,12 +45,27 @@ const MEDIA_TYPE_RE = /^(video|audio)\/[a-z0-9.+-]+$/;
 // than the phone uploads (a car on LTE, a phone on Wi-Fi) would queue frames
 // in this object's memory without bound until the isolate is evicted — taking
 // the publisher and every viewer down with it. Each viewer gets a window of
-// frames in flight and refills it with a text "ack" (sent by the player every
-// VIEWER_WINDOW drawn frames); while a viewer is out of credit it is handed
-// only the freshest frame once it acks. If no ack arrives for a while (lost
-// ack, or a page from before this protocol) the window refills anyway.
-const VIEWER_WINDOW = 4;
-const STALL_REFILL_MS = 5000;
+// frames in flight, and every text "ack" returns ACK_CREDITS — exactly the
+// number of frames the player acks for (every 4th frame it *receives*, counting
+// ones it skips while busy decoding), so credits are conserved and a slow car
+// is held to VIEWER_WINDOW frames in flight. The window is twice the ack
+// interval, so the player acks while frames are still in flight and never
+// starves itself. While a viewer is out of credit it is handed only the
+// freshest frame once it acks.
+//
+// Acks ride TCP and are not lost, so a current player (it connects with
+// ?acks=recv and is tagged TAG_ACKS_RECEIVED) never needs more: out of credit
+// means at least two acks are still coming. A player page from before this
+// protocol counted *drawn* frames, so it could under-ack and stall. For those
+// only, after STALL_REFILL_MS with no send and no ack the viewer is handed one
+// fresh frame — at most STALL_REFILLS_MAX times in a row, so a car whose
+// connection died silently cannot pile frames into this object until the sweep
+// reaps it. Current players get no such refill, because an unearned credit on a
+// slow-but-alive link is a frame that never stops being extra.
+const VIEWER_WINDOW = 8;
+const ACK_CREDITS = 4;
+const STALL_REFILL_MS = 2000;
+const STALL_REFILLS_MAX = 10;
 
 const json = obj => new Response(JSON.stringify(obj), {
   headers: { 'Content-Type': 'application/json' },
@@ -134,7 +150,10 @@ export class Room extends DurableObject {
 
     if (upgrade === 'websocket') {
       if (path.startsWith('/ingest/')) return this.#ingest(url);
-      if (path.startsWith('/view/')) return this.#acceptTagged(TAG_VIEWER);
+      if (path.startsWith('/view/')) {
+        const extra = url.searchParams.get('acks') === 'recv' ? [TAG_ACKS_RECEIVED] : [];
+        return this.#acceptTagged(TAG_VIEWER, extra);
+      }
       if (path.startsWith('/video-events/')) return this.#acceptTagged(TAG_VIDEO_VIEWER);
       return closeWith(4004, 'unknown path');
     }
@@ -220,11 +239,19 @@ export class Room extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async #acceptTagged(tag) {
+  async #acceptTagged(tag, extraTags = []) {
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-    this.ctx.acceptWebSocket(server, [tag]);
+    this.ctx.acceptWebSocket(server, [tag, ...extraTags]);
     this.#touch(server);
+    // A (re)joining car gets the freshest frame now instead of waiting for the
+    // phone's screen to change. #latest is memory-only, so after this object
+    // hibernates (a static screen sends only auto-answered pings) ask the
+    // publisher to resend its last frame instead.
+    if (tag === TAG_VIEWER) {
+      if (this.#latest) this.#deliver(server);
+      else for (const pub of this.ctx.getWebSockets(TAG_PUBLISHER)) { try { pub.send('need-frame'); } catch (_) {} }
+    }
     await this.#scheduleSweep();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -242,14 +269,19 @@ export class Room extends DurableObject {
     }
     if (tags.includes(TAG_VIEWER) && message === 'ack') {
       const flow = this.#flowFor(ws);
-      flow.credits = VIEWER_WINDOW;
+      flow.credits = Math.min(flow.credits + ACK_CREDITS, VIEWER_WINDOW);
+      flow.lastAck = Date.now(); flow.refills = 0;
       if (flow.behind) this.#deliver(ws);          // it fell behind: hand it the freshest frame
     }
   }
 
   #flowFor(viewer) {
     let flow = this.#flow.get(viewer);
-    if (!flow) { flow = { credits: VIEWER_WINDOW, lastSend: 0, behind: false }; this.#flow.set(viewer, flow); }
+    if (!flow) {
+      const legacy = !this.ctx.getTags(viewer).includes(TAG_ACKS_RECEIVED);
+      flow = { credits: VIEWER_WINDOW, lastSend: 0, lastAck: Date.now(), refills: 0, behind: false, legacy };
+      this.#flow.set(viewer, flow);
+    }
     return flow;
   }
 
@@ -257,7 +289,10 @@ export class Room extends DurableObject {
     if (!this.#latest) return;
     const flow = this.#flowFor(viewer);
     const now = Date.now();
-    if (flow.credits <= 0 && now - flow.lastSend > STALL_REFILL_MS) flow.credits = VIEWER_WINDOW;
+    if (flow.credits <= 0 && flow.legacy && flow.refills < STALL_REFILLS_MAX &&
+        now - Math.max(flow.lastSend, flow.lastAck) > STALL_REFILL_MS) {
+      flow.credits = 1; flow.refills++;
+    }
     if (flow.credits <= 0) { flow.behind = true; return; }
     try {
       viewer.send(this.#latest);

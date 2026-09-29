@@ -22,9 +22,10 @@ All routes from `server.js` are preserved: `/`, `/healthz`, `/watch/<code>`,
 **The shipping app uses the JPEG path**: the broadcast extension pushes frames to
 `/ingest`, the Durable Object fans them out to `/view`, and `/watch` serves the
 canvas player. The extension keeps every frame under 900 KB (the runtime closes a
-socket on any message over 1 MiB) and sends a text `ping` every 25 s, which the
+socket on any message over 1 MiB) and sends a text `ping` every 10 s, which the
 object auto-answers without waking or forwarding to viewers, so a static phone
-screen does not get its socket reaped. The LiveKit/WebRTC routes remain live and
+screen does not get its socket reaped — and a ping left unanswered tells the
+extension its connection is dead. The LiveKit/WebRTC routes remain live and
 working but nothing in the app publishes to them.
 
 ## Deploy
@@ -52,8 +53,11 @@ For local development, put the same two secrets in `worker/.dev.vars`
 ### Tests
 
 `test/e2e.mjs` exercises every route, the WebSocket relay (close codes, fan-out,
-backpressure, publisher-gone), the trust-on-first-use claim, and byte-range video
-serving. It needs Node 22+ and a running target:
+backpressure, publisher-gone), per-viewer flow control (the 8-frame window, a
+slow viewer — even one acking seconds late — never having more frames in flight
+than it acked for, no stall refills for the current player and one-frame refills
+for legacy pages, latest-frame replay to a joining viewer and the `need-frame`
+request when there is none), the trust-on-first-use claim, and byte-range video serving. It needs Node 22+ and a running target:
 
 ```bash
 npx wrangler dev            # in one terminal
@@ -87,7 +91,7 @@ flaws the original shared.
 | Uploaded `Content-Type` | echoed back verbatim | coerced to a `video/*` or `audio/*` type, `X-Content-Type-Options: nosniff` | `Content-Type: text/html` was stored XSS on the apex origin |
 | Zero-byte upload | stored, served as an empty 200 | rejected with `400` | a 0-byte video is never useful and broke the player |
 | Socket keepalive | 30 s server ping, `terminate()` on no pong | client `ping` auto-answered by the runtime + a 60 s sweep that closes sockets idle > 150 s | hibernated DOs cannot run a timer; the auto-response never wakes the object |
-| MJPEG fan-out | every frame sent to every viewer, unbounded | each viewer has a 4-frame window, refilled by a text `ack` from the player every 4 drawn frames; a viewer out of credit is handed only the freshest frame once it acks (refilled anyway after 5 s without an ack) | a Workers `send()` never blocks and has no buffered-amount signal, so a car draining slower than the phone uploads would queue frames in the object's 128 MB until eviction |
+| MJPEG fan-out | every frame sent to every viewer, unbounded | each viewer has an 8-frame window; the player connects with `?acks=recv` and sends a text `ack` every 4 frames it receives, each returning those 4 credits; a viewer out of credit is handed only the freshest frame once it acks; a legacy page (no `?acks=recv`) that has had neither a send nor an ack for 2 s is handed one fresh frame, at most 10 times in a row; a joining viewer is sent the latest frame immediately, or the publisher is sent `need-frame` if the object holds none (after hibernating) | a Workers `send()` never blocks and has no buffered-amount signal, so a car draining slower than the phone uploads would queue frames in the object's 128 MB until eviction |
 | Publisher leaves | viewers not told | viewers receive the text `publisher-gone`; the player drops its LIVE badge | otherwise the car sits on a frozen frame marked LIVE |
 | Default `/watch` player | LiveKit (falls back to MJPEG after 8 s) | MJPEG canvas player; `?mode=webrtc` or a stored `webrtc` mode selects LiveKit | the app publishes only MJPEG; `/ingest` also records `mode=mjpeg` on every publisher connect |
 | Room cleanup | whole room (incl. mode) forgotten when the last socket closed | mode kept; only in-memory frame state released | dropping the mode sent the next fresh `/watch` load through the LiveKit page's 8 s detour |

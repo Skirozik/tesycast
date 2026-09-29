@@ -60,31 +60,57 @@ send "video" at all. It sends the screen as a fast stream of **JPEG stills paint
    ignored — audio goes over Bluetooth.
 3. **Adaptive quality.** The extension times how long each frame takes to clear the socket
    and keeps a moving average (80% old / 20% new). Six presets run from 420 px wide at JPEG
-   quality 0.34 to 1200 px at 0.52, starting in the middle (660 px / 0.40). Two consecutive
-   slow sends (average above ~38 ms, i.e. slower than 30 fps) step the ladder *down* one
-   rung; twenty consecutive fast sends (below ~18 ms) step it *up* one rung — back off fast,
-   probe slowly, the same asymmetry TCP uses, so it settles instead of oscillating. The
-   average resets after every step. Separately, any encoded frame over 900 KB steps the
-   ladder down and is re-encoded, repeating until it fits (a frame already at the lightest
+   quality 0.34 to 1200 px at 0.52, starting in the middle (660 px / 0.40). It is tuned for
+   latency: an upload slower than one frame interval (~33 ms at 30 fps) is already falling
+   behind, so two slow sends (each over ~33 ms, with the average over it too) step the
+   ladder *down* one rung, and after a step, each further slow send steps again while the
+   average stays above ~33 ms. A single upload over ~83 ms drops a rung immediately, and
+   counts at most ~83 ms in the average, so one stall costs exactly one rung. Twenty
+   consecutive sends with the average below ~18 ms step it *up* one rung — back off fast,
+   probe slowly, the same asymmetry TCP uses.
+   If a rung it just climbed to fails within its first 90 frames (~3 s at 30 fps), the
+   streak needed to try that rung again doubles (up to 160), so a link that wobbles around
+   a rung's cost doesn't flip the quality back and forth; holding any rung for 90 frames,
+   or climbing on from it, resets its streak. After a step the average is rescaled by the
+   new preset's expected frame size (pixel area × quality) rather than thrown away.
+   Separately, any encoded frame over 900 KB steps the ladder down and is re-encoded, repeating until it fits (a frame already at the lightest
    preset is skipped), because the Cloudflare Workers runtime hosting the relay closes a
    socket on any WebSocket message over 1 MiB.
 4. **Relay: fan-out.** One Durable Object per stream code holds the publisher socket and
-   every viewer socket. Each frame is forwarded to viewers that have credit: a viewer gets a
-   **4-frame window** and refills it by sending `ack` after every 4 frames it draws. A viewer
-   that is out of credit is skipped and, when it acks, receives only the **latest** frame.
-   That bounds the relay's memory per viewer and keeps a slow car current instead of behind.
+   every viewer socket. Each frame is forwarded to viewers that have credit: a viewer gets an
+   **8-frame window**, and the player sends `ack` for every 4 frames it *receives* (counting
+   ones it skips while busy drawing), each ack returning those 4 credits — so a car whose
+   own connection is slower than the phone's never has more than 8 frames queued toward it.
+   A viewer that is out of credit is skipped and, when it acks, receives only the **latest**
+   frame. That bounds the relay's memory per viewer and keeps a slow car current instead of
+   behind. (A player page cached from before this protocol counted *drawn* frames and could
+   under-ack, so a viewer that doesn't announce the new cadence with `?acks=recv` is handed
+   one fresh frame after 2 s with neither a frame nor an ack — at most 10 times in a row, so
+   a car whose connection died silently can't pile frames into the relay.) A car that
+   connects or reloads mid-broadcast is handed the latest frame at once; if the relay no
+   longer holds one (it hibernated while the phone's screen was static), it asks the phone
+   to resend its newest frame instead. The phone also resends it every time its own socket
+   reconnects, so a car already watching gets its picture back even on a still screen.
 5. **Tesla: paint.** `/watch/<code>` serves a page that opens `/view/<code>` and draws each
    JPEG onto a full-screen canvas (`object-fit: contain`, so nothing is cropped). It decodes
-   one frame at a time and, if frames arrive faster than the car's CPU can draw, keeps only
-   the freshest one. A `LIVE` badge shows while frames flow.
+   with `createImageBitmap` off the main thread where the browser has it (falling back to an
+   `<img>` decode), one frame at a time, and if frames arrive faster than the car's CPU can
+   draw, keeps only the freshest one. A `LIVE` badge shows while frames flow.
 6. **Status.** The app polls `/status/<code>` every 1.5 s and drives its LIVE/READY badge and
    timer from whether the relay currently holds a publisher socket for the code. When the
    phone stops, the relay tells viewers `publisher-gone` so the car returns to
    "Waiting for broadcast…" instead of freezing on the last frame marked LIVE.
-7. **Keepalive.** ReplayKit only delivers frames when the screen changes, so both the
-   extension and the player send a `ping` every 25 s; the relay answers `pong` without
-   waking the room and reaps sockets silent for 150 s. Both ends reconnect automatically
-   after a drop (the extension after 2 s, the player after 1.5 s).
+7. **Keepalive and reconnect.** ReplayKit only delivers frames when the screen changes, so
+   both ends send a `ping` — the player every 25 s, the extension every 10 s — and the relay
+   answers `pong` without waking the room and reaps sockets silent for 150 s. Losing signal
+   rarely produces an error, so the extension treats a ping unanswered for 5 s as a dead
+   connection (unless the ping is queued behind a frame that was already uploading, for up
+   to 10 s). Both ends reconnect automatically: the player after 1.5 s; the extension after
+   ~0.4 s, doubling (plus up to 25% jitter) to about 2–2.5 s while attempts keep failing, and
+   dropping back once the relay answers or a frame gets through. A handshake that hasn't
+   completed within 3 s is abandoned; after two such timeouts in a row the deadline doubles
+   (6, 12, up to 20 s), so a slow but working link still connects. Pings start only once
+   the socket is open.
 
 Each phone gets its own code, so streams stay isolated between users, and the relay
 remembers each code's transport between broadcasts so a fresh page load in the car always
@@ -119,7 +145,7 @@ gets the canvas player.
 | What | Limit | Where it comes from |
 |------|-------|---------------------|
 | Frame size | 1 MiB per WebSocket message; the extension stays under 900 KB | Cloudflare Workers runtime |
-| Relay requests | ~100,000 per day on the free plan (frames count 20 per request, plus acks and status polls) | Cloudflare Durable Objects free tier — an all-day 30 fps session uses roughly 70–75k |
+| Relay requests | ~100,000 per day on the free plan (incoming WebSocket messages — frames and the player's acks — count 20 per request; status polls count 1 each) | Cloudflare Durable Objects free tier — a continuous 30 fps stream with one car watching is ~6,750 requests an hour, so roughly 14 hours a day; a screen that isn't changing sends nothing |
 | Uploaded video (`/player`) | 64 MB per file | a Worker isolate has 128 MB of memory |
 | Cost | $0 with hard caps; nothing on file that can bill | Cloudflare Workers free plan, LiveKit Cloud free tier |
 

@@ -60,34 +60,45 @@ export function mirrorHTML(BRAND, code) {
   <canvas id="c"></canvas>
   <script>
     var code="${c}";
-    var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+    var canvas=document.getElementById('c'),ctx=canvas.getContext('2d',{alpha:false});
     var statusEl=document.getElementById('status'),badge=document.getElementById('badge'),msg=document.getElementById('msg');
     // Decode one frame at a time; if frames arrive faster than the (slow) Tesla CPU can
     // draw, keep only the freshest one instead of letting a backlog build up (= lag).
-    // The relay gives this viewer a window of 4 frames in flight and refills it on
-    // 'ack', so a car on a slow link is handed the freshest frame rather than a backlog.
-    var busy=false,pending=null,ws=null,drawn=0;
+    // The relay gives this viewer a window of 8 frames in flight and returns 4 per 'ack'.
+    // Acks go out on every 4th frame *received* (coalesced ones included), so a slow
+    // decoder never starves its own window and a slow link is never overfilled.
+    var busy=false,pending=null,ws=null,recv=0;
+    // createImageBitmap decodes off the main thread; the Image path is the fallback
+    // for browsers without it, and takes over for good if it ever rejects a frame.
+    var useCIB=typeof createImageBitmap==='function';
     function done(){
-      busy=false;drawn++;
-      if(drawn%4===0&&ws&&ws.readyState===1){try{ws.send('ack');}catch(_){}}
+      busy=false;
       if(pending){var p=pending;pending=null;draw(p);}
+    }
+    function paint(src,w,h){
+      if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+      ctx.drawImage(src,0,0);
+    }
+    function drawImg(blob){
+      var url=URL.createObjectURL(blob);
+      var img=new Image();
+      img.onload=function(){paint(img,img.naturalWidth,img.naturalHeight);URL.revokeObjectURL(url);done();};
+      img.onerror=function(){URL.revokeObjectURL(url);done();};
+      img.src=url;
     }
     function draw(data){
       busy=true;
-      var url=URL.createObjectURL(new Blob([data],{type:'image/jpeg'}));
-      var img=new Image();
-      img.onload=function(){
-        if(canvas.width!==img.naturalWidth||canvas.height!==img.naturalHeight){canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;}
-        ctx.drawImage(img,0,0);URL.revokeObjectURL(url);done();
-      };
-      img.onerror=function(){URL.revokeObjectURL(url);done();};
-      img.src=url;
+      var blob=new Blob([data],{type:'image/jpeg'});
+      if(!useCIB){drawImg(blob);return;}
+      createImageBitmap(blob).then(function(bmp){
+        paint(bmp,bmp.width,bmp.height);if(bmp.close)bmp.close();done();
+      },function(){useCIB=false;drawImg(blob);});
     }
     function waiting(text){msg.textContent=text;statusEl.style.display='block';badge.style.display='none';}
     function connect(){
       var proto=location.protocol==='https:'?'wss:':'ws:';
-      ws=new WebSocket(proto+'//'+location.host+'/view/'+code);
-      ws.binaryType='arraybuffer';var ka=0;drawn=0;
+      ws=new WebSocket(proto+'//'+location.host+'/view/'+code+'?acks=recv');
+      ws.binaryType='arraybuffer';var ka=0;recv=0;
       // Keepalive: the relay auto-answers 'ping' with 'pong' and reaps sockets
       // that stop pinging, so a dropped connection is noticed within ~2 min.
       ws.onopen=function(){ka=setInterval(function(){try{ws.send('ping');}catch(_){}},25000);};
@@ -96,6 +107,8 @@ export function mirrorHTML(BRAND, code) {
           if(e.data==='publisher-gone')waiting('Waiting for broadcast\\u2026');
           return;
         }
+        recv++;
+        if(recv%4===0&&ws.readyState===1){try{ws.send('ack');}catch(_){}}
         statusEl.style.display='none';badge.style.display='flex';
         if(busy){pending=e.data;return;}
         draw(e.data);

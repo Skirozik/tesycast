@@ -19,10 +19,13 @@ function decodeJwt(t) {
   return JSON.parse(Buffer.from(p, 'base64').toString());
 }
 
-function openWs(url, { binary = false } = {}) {
+// `onmessage` is attached before the socket opens, so a frame the relay sends
+// the moment a viewer joins (join replay) is never missed.
+function openWs(url, { binary = false, onmessage = null } = {}) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     if (binary) ws.binaryType = 'arraybuffer';
+    if (onmessage) ws.onmessage = onmessage;
     ws.onopen = () => resolve({ ws });
     ws.onclose = e => resolve({ ws, closeEvent: e });
     ws.onerror = () => {};
@@ -106,7 +109,10 @@ const SECRET = 's3cr3t-' + rnd(8);
   check('GET /watch after mode=mjpeg -> MJPEG player', wm.includes("'/view/'") && wm.includes('canvas'), '');
   check('MJPEG player ignores string control frames', wm.includes("typeof e.data==='string'"), '');
   check('MJPEG player sends keepalive ping', wm.includes("ws.send('ping')"), '');
-  check('MJPEG player acks every 4 drawn frames', wm.includes("drawn%4===0") && wm.includes("ws.send('ack')"), '');
+  check('MJPEG player acks every 4th received frame', wm.includes("recv%4===0") && wm.includes("ws.send('ack')") && !wm.includes('drawn'), '');
+  check('MJPEG player announces received-frame acks (?acks=recv)', wm.includes("'/view/'+code+'?acks=recv'"), '');
+  check('MJPEG player decodes via createImageBitmap w/ Image fallback', wm.includes('createImageBitmap(blob)') && wm.includes('new Image()'), '');
+  check('MJPEG player uses an opaque canvas', wm.includes("getContext('2d',{alpha:false})"), '');
   check('MJPEG player handles publisher-gone', wm.includes("'publisher-gone'"), '');
 
   const mw = await fetch(`${BASE}/mode/${code}?mode=webrtc&secret=${SECRET}`, { method: 'POST' });
@@ -158,12 +164,13 @@ const SECRET = 's3cr3t-' + rnd(8);
   const got = frames.filter(f => f instanceof ArrayBuffer);
   check('publisher frame fans out to viewer', got.length === 1 && new Uint8Array(got[0]).join() === '1,2,3,4,5', `frames=${frames.length}`);
 
-  const viewer2 = await openWs(`${WSB}/view/${code}`, { binary: true });
   const f2 = [];
-  viewer2.ws.onmessage = e => { if (e.data instanceof ArrayBuffer) f2.push(e.data); };
+  const viewer2 = await openWs(`${WSB}/view/${code}`, { binary: true, onmessage: e => { if (e.data instanceof ArrayBuffer) f2.push(e.data); } });
+  await sleep(300);
+  check('late-joining viewer is handed the latest frame', f2.length === 1 && new Uint8Array(f2[0]).join() === '1,2,3,4,5', `got=${f2.length}`);
   viewer.ws.send(new Uint8Array([9, 9, 9]));
   await sleep(400);
-  check('viewer cannot inject frames to other viewers', f2.length === 0, `got=${f2.length}`);
+  check('viewer cannot inject frames to other viewers', f2.length === 1, `got=${f2.length}`);
 
   const pongs = [];
   viewer2.ws.onmessage = e => { if (typeof e.data === 'string') pongs.push(e.data); };
@@ -208,17 +215,19 @@ const SECRET = 's3cr3t-' + rnd(8);
   const pub = await openWs(`${WSB}/ingest/${bcode}?secret=${bsecret}`);
   await sleep(300);
 
-  for (let i = 1; i <= 6; i++) pub.ws.send(new Uint8Array([i, 0, 0]));
-  await sleep(600);
-  check('viewer without acks receives exactly the 4-frame window', got.length === 4 && got.join() === '1,2,3,4', `got=${got.join()}`);
+  // The viewer joined before any frame, so there is no join replay here. These
+  // sleeps stay well under the 2 s stall refill.
+  for (let i = 1; i <= 12; i++) pub.ws.send(new Uint8Array([i, 0, 0]));
+  await sleep(400);
+  check('viewer without acks receives exactly the 8-frame window', got.join() === '1,2,3,4,5,6,7,8', `got=${got.join()}`);
 
   viewer.ws.send('ack');
   await sleep(400);
-  check('ack hands the behind viewer the freshest frame only', got.length === 5 && got[4] === 6, `got=${got.join()}`);
+  check('ack hands the behind viewer the freshest frame only', got.length === 9 && got[8] === 12, `got=${got.join()}`);
 
-  pub.ws.send(new Uint8Array([7, 0, 0]));
+  pub.ws.send(new Uint8Array([13, 0, 0]));
   await sleep(300);
-  check('frames flow again after ack', got.length === 6 && got[5] === 7, `got=${got.join()}`);
+  check('frames flow again after ack', got.length === 10 && got[9] === 13, `got=${got.join()}`);
 
   pub.ws.close();
   await sleep(500);
@@ -227,6 +236,115 @@ const SECRET = 's3cr3t-' + rnd(8);
   viewer.ws.close();
   await sleep(500);
   check('mode kept after all sockets close -> /watch still canvas player', (await (await fetch(`${BASE}/watch/${bcode}`)).text()).includes("'/view/'"));
+}
+
+// ── Flow control: join replay, credit conservation, stall refill ─────────────
+{
+  const fcode = 'tc' + rnd(10);
+  const fsecret = 'fc-' + rnd(8);
+  await fetch(`${BASE}/token/${fcode}?role=publish&secret=${fsecret}`);
+  const pubTexts = [];
+  const pub = await openWs(`${WSB}/ingest/${fcode}?secret=${fsecret}`, { onmessage: e => { if (typeof e.data === 'string') pubTexts.push(e.data); } });
+  await sleep(200);
+
+  // Open a viewer that records frame ids and acks every `ackEvery`-th received
+  // frame (0 = never), optionally `ackDelayMs` late to mimic a slow car link.
+  // Current players connect with ?acks=recv; `legacy` mimics a page cached from
+  // before that, which the relay rescues with one-frame stall refills.
+  const viewerWith = async (ackEvery, ackDelayMs = 0, { legacy = false } = {}) => {
+    const got = [];
+    let n = 0, acks = 0, overshoot = 0;
+    const v = await openWs(`${WSB}/view/${fcode}${legacy ? '' : '?acks=recv'}`, {
+      binary: true,
+      onmessage: e => {
+        if (typeof e.data === 'string') return;
+        got.push(new Uint8Array(e.data)[0]);
+        n++;
+        // The relay may only have sent what the window plus returned credit allows.
+        overshoot = Math.max(overshoot, n - (8 + 4 * acks));
+        if (ackEvery && n % ackEvery === 0) {
+          const ws = e.target;
+          if (ackDelayMs) setTimeout(() => { acks++; ws.send('ack'); }, ackDelayMs);
+          else { acks++; ws.send('ack'); }
+        }
+      },
+    });
+    return { ws: v.ws, got, overshoot: () => overshoot };
+  };
+  const sendSpaced = async (from, count, gapMs) => {
+    for (let i = 0; i < count; i++) { pub.ws.send(new Uint8Array([from + i])); await sleep(gapMs); }
+  };
+  const range = (from, count) => Array.from({ length: count }, (_, i) => from + i).join();
+
+  // Pace the "every frame arrives" checks from the measured round trip, so they
+  // also hold against a remote deployment: an ack sent after frame 4 must land
+  // before the relay spends the other 4 credits.
+  const probe = await openWs(`${WSB}/view/${fcode}`);
+  let rtt = 0;
+  for (let i = 0; i < 3; i++) {
+    const t = Date.now();
+    await new Promise(res => { probe.ws.onmessage = e => { if (e.data === 'pong') res(); }; probe.ws.send('ping'); });
+    rtt = Math.max(rtt, Date.now() - t);
+  }
+  probe.ws.close();
+  const gap = Math.max(10, Math.ceil(rtt / 3));
+
+  pubTexts.length = 0;                     // the RTT probe above joined frameless too
+  const a0 = await viewerWith(0);
+  await sleep(300);
+  check('viewer joining before any frame asks the publisher to resend', pubTexts.includes('need-frame') && a0.got.length === 0, `texts=${JSON.stringify(pubTexts)} got=${a0.got.join()}`);
+  a0.ws.close();
+
+  pub.ws.send(new Uint8Array([42]));
+  await sleep(200);
+  const a = await viewerWith(0);
+  await sleep(300);
+  check('joining viewer is replayed the latest frame immediately', a.got.join() === '42', `got=${a.got.join()}`);
+  a.ws.close();
+
+  const b = await viewerWith(4);           // the current player's cadence
+  await sendSpaced(1, 30, gap);
+  await sleep(300 + rtt);
+  check('viewer acking every 4th received frame gets all 30', b.got.slice(1).join() === range(1, 30), `got=${b.got.join()} gap=${gap}`);
+  b.ws.close();
+
+  const slow = await viewerWith(4, 250);   // acks arrive 250 ms late: a slow car link
+  await sendSpaced(1, 40, 10);
+  await sleep(1200);
+  check('slow viewer never has more frames in flight than it acked for', slow.overshoot() <= 0 && slow.got[slow.got.length - 1] === 40, `overshoot=${slow.overshoot()} got=${slow.got.join()}`);
+  slow.ws.close();
+
+  // Acks 2.5 s late — past the stall-refill delay — as on a car link carrying
+  // well under 2 fps. A current player must still be held to its window.
+  const crawl = await viewerWith(4, 2500);
+  await sendSpaced(1, 50, 100);
+  await sleep(3000);
+  check('very slow current viewer gets no refills beyond its window', crawl.overshoot() <= 0, `overshoot=${crawl.overshoot()} got=${crawl.got.join()}`);
+  crawl.ws.close();
+
+  const quiet = await viewerWith(0);       // a current player that has gone silent
+  await sleep(200);
+  for (let i = 101; i <= 112; i++) pub.ws.send(new Uint8Array([i]));
+  await sleep(2300);
+  pub.ws.send(new Uint8Array([113]));
+  await sleep(300);
+  check('silent current viewer is held at its window (no refill)', quiet.got.slice(1).join() === range(101, 7), `got=${quiet.got.join()}`);
+  quiet.ws.close();
+
+  const c = await viewerWith(0, 0, { legacy: true });   // replay spends 1 of 8 credits
+  await sleep(200);
+  for (let i = 101; i <= 112; i++) pub.ws.send(new Uint8Array([i]));
+  await sleep(300);
+  check('never-acking legacy viewer stops at its window', c.got.slice(1).join() === range(101, 7), `got=${c.got.join()}`);
+  await sleep(2000);                       // now past the 2 s stall refill
+  pub.ws.send(new Uint8Array([113]));
+  pub.ws.send(new Uint8Array([114]));
+  await sleep(300);
+  check('stall refill hands a stalled legacy page one fresh frame, not a window', c.got.slice(8).join() === '113', `got=${c.got.join()}`);
+  c.ws.close();
+
+  pub.ws.close();
+  await sleep(300);
 }
 
 // ── Video upload + range serving ────────────────────────────────────────────
